@@ -113,10 +113,13 @@ class Image():
             """
             Locate the region the source is in.  1st region wins
             """
+            retval = 0
+
             for ii,rr in enumerate( regions ):
                 if regInsideRegion(rr, xy[0], xy[1]):
-                    return ii+1
-            return 0
+                    retval = ii+1
+
+            return retval
 
         from sherpa.utils import parallel_map 
         outmap = parallel_map( in_region, self.xy )
