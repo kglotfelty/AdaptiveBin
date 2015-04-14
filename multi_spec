@@ -19,9 +19,11 @@
 
 
 toolname = "multi_spec"
-__revision__ = "13 April 2015"
+__revision__ = "14 April 2015"
 
 import sys
+import os
+
 
 import pycrates as pyc
 import numpy as np
@@ -32,6 +34,8 @@ slog = logging.getLogger( "sherpa")
 slog.setLevel( logging.ERROR )
 
 import ciao_contrib.logger_wrapper as lw
+from ciao_contrib.runtool import make_tool
+
 lw.initialize_logger(toolname)
 lgr = lw.get_logger(toolname)
 verb0 = lgr.verbose0
@@ -96,6 +100,11 @@ class MultiSpectrum():
         self.init_str = init 
         self.retstr = retval 
 
+        cols = self.retstr+""
+        for d in "().": cols = cols.replace(d,"_")        
+        while '__' in cols: cols = cols.replace("__", "_")
+
+        self.out_cols = cols.split(",")
 
     def my_fit( self, grid ):
         verb2("Fitting mask_id={}".format(grid+1))
@@ -146,20 +155,16 @@ class MultiSpectrum():
         self.mask_id = [ x[0] for x in od ]
         self.ret_val = [ x[1] for x in od ]
 
-    def save(self, outfile, clobber):
+    def save(self, outroot, infile, clobber):
         #
         # Save data
         # 
-        
-        cols = self.retstr+""
-        for d in "().":
-            cols = cols.replace(d,"_")
-        
-        while '__' in cols:
-            cols = cols.replace("__", "_")
 
-        cols = cols.split(",")
+        outfile = outroot+".dat"
         
+        cols = self.out_cols
+        
+        # Unpack the data returned from the parallel_map
         savecols = {}
         for c in cols:
             savecols[c] = []
@@ -178,9 +183,53 @@ class MultiSpectrum():
         from crates_contrib.utils import write_columns
         write_columns( outfile, savecols, colnames=cols, clobber=clobber, format="fits")
 
+        # Save images of each returned parameter value
+        
+        dmf = make_tool("dmmaskfill")
+        for c in cols[1:]:
+            dmf( outfile+"[cols mask_id,{}]".format(c), infile+"[opt type=i4]", outroot+".{}.map".format(c), clobber=True)
+        
 
 
 
+def make_spectral_map( infile, eventfile, outroot, bkg=""):
+    from pycrates import read_file
+    
+    verb1("Creating spectrum image")
+
+    mask = read_file( infile ).get_image()
+    colname = mask.name.replace(".","_")
+    maxval = np.max( mask.values )
+
+    try:
+        dmi = make_tool("dmimgpick")
+        dmi( infile=eventfile, imgfile=infile, outfile=outroot+".mapped", method="closest", clobber=True, verbose=0)
+    
+        dmc = make_tool("dmcopy")
+        dmc( dmi.outfile+"[bin {col}=1:{maxval}:1,pi=1:1024:1]".format( col=colname, maxval=maxval), outfile=outroot+"{bkg}.spectra".format(bkg=bkg), clobber=True )
+    finally:
+        if os.path.exists( dmi.outfile ):
+            os.remove( dmi.outfile )
+
+    return dmc.outfile
+
+
+
+def root_clobber( outroot, outcols, clobber ):
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+
+
+    outfile_clobber_checks(clobber, outroot+".spectra" )
+    outfile_clobber_checks(clobber, outroot+"bkg.spectra" )
+    outfile_clobber_checks(clobber, outroot+".dat" )
+    
+    cols = outcols+""
+    for d in "().":  cols = cols.replace(d,"_")
+    while '__' in cols: cols = cols.replace("__", "_")
+
+    for c in cols:
+        outfile_clobber_checks(clobber, outroot+".{}.map".format(c) )
+        
 
 
 
@@ -193,15 +242,22 @@ def main():
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
+    
+    root_clobber( pars["outroot"], pars["return_value"], pars["clobber"])
 
-    from ciao_contrib._tools.fileio import outfile_clobber_checks
-    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+    spectra = make_spectral_map( pars["infile"], pars["evtfile"], pars["outroot"])
+    if (len(pars["bkgevt"]) > 0) and "none" != pars["bkgevt"].lower():
+        bkg_spectra = make_spectral_map( pars["infile"], pars["bkgevt"], pars["outroot"], bkg="_bkg")
+    else:
+        bkg_spectra = ""
 
-    multi = MultiSpectrum( pars["infile"], pars["bkgfile"] )
+    multi = MultiSpectrum( spectra, bkg_spectra )
     multi.set_responses( pars["arffile"], pars["rmffile"] )
     multi.set_model( pars["srcmodel"], pars["initialization"], pars["return_value"] )
     multi.fit()
-    multi.save( pars["outfile"], pars["clobber"] )
+    multi.save( pars["outroot"], pars["infile"], pars["clobber"] )
+
+
     
 
 if __name__ == "__main__":
