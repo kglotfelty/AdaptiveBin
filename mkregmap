@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+
+#
+# Copyright (C) 2014-2015 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+
+toolname = "mkregmap"
+__revision__ = "14 Apr 2015"
+
+import sys
+import os
+
+import numpy as np
+from region import *
+
+
+import ciao_contrib.logger_wrapper as lw
+lgr = lw.initialize_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+
+def parse_region( region_string ):
+    """
+    Parse stack of regions
+    """
+
+    def rparse( filename ):    
+        """
+        Parse the region file.  Try bare, if that fails then
+        wrap in a region() token.
+        """
+        try:
+            rr = regParse( filename )
+            if None == rr:
+                raise Exception("try region()")
+        except:
+            rr = regParse( "region({})".format(filename))
+            if None == rr:
+                raise ValueError("bad region {}".format(filename))
+
+        return rr
+
+
+    # Region not pickle-able, so have to go serial
+    import stk as stk
+    ss = stk.build(region_string)
+    regions = map( rparse, ss )
+    return regions
+    
+
+
+class Image():
+    
+    def __init__( self, infile, coord="sky" ):
+        # Read the image file
+        import pycrates as pc
+
+        img = pc.read_file(infile)
+
+        # Load the pixel values -- really just need the image size
+        img_data = img.get_image().values
+
+        # Get lengths of each axis 
+        xlen = len(img_data[0])
+        ylen = len(img_data)
+
+        # Create arrays for X,Y values.
+        ii = map(float, range( 1, xlen+1) * ylen)
+        jj = map(float, np.repeat( range(1,ylen+1), xlen ))
+
+        # Get mapping to physical X,Y
+        if coord.lower() not in map( lambda x: x.lower(), img.get_axisnames() ) :
+            raise ValueError("Coordinate '{}' is not in file".format(coord))
+
+        sky = img.get_transform(coord)
+
+        # Convert  ii,jj to xx,yy -- faster to do all at once
+        self.xy = sky.apply( np.array(zip(ii,jj)))
+        self.infile = infile
+        self.xlen = xlen
+        self.ylen = ylen
+
+
+    def map_regions( self, regions ):
+        """
+        Determine which region each pixel belongs to.  
+        If there are multiple regions covering the same 
+        pixel, then the last one will win.
+        """
+        
+        def in_region( xy ):
+            """
+            Locate the region the source is in.  1st region wins
+            """
+            for ii,rr in enumerate( regions ):
+                if regInsideRegion(rr, xy[0], xy[1]):
+                    return ii+1
+            return 0
+
+        from sherpa.utils import parallel_map 
+        outmap = parallel_map( in_region, self.xy )
+        od = np.array( outmap ).reshape( [self.ylen, self.xlen ] ) 
+
+        return od
+
+
+def save_output( od, infile, outfile):
+    """
+    Save map, WANT to use same input crate, just replace pixel
+    values, but crates has bug in linear WCS, so go cxcdm
+    """
+
+    from cxcdm import dmImageOpen, dmBlockCreateCopy, dmDatasetCreate, dmImageSetData, dmImageGetDataDescriptor, dmImageClose
+
+    if os.path.exists( outfile ):
+        os.remove(outfile)
+
+    in_img = dmImageOpen(infile)
+    out_img = dmBlockCreateCopy( dmDatasetCreate(outfile), "REGMAP", in_img, copydata=False)
+    dmImageSetData( dmImageGetDataDescriptor( out_img), od )
+    dmImageClose( out_img)
+
+
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+
+    # get parameters
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+
+    
+    img = Image( pars["infile"], coord=pars["coord"] )
+    reg = parse_region( pars["regions"]  )
+    out = img.map_regions( reg )
+    save_output( out, pars["infile"], pars["outfile"] )
+
+    from ciao_contrib.runtool import add_tool_history
+    add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
