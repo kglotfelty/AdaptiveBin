@@ -19,7 +19,7 @@
 
 
 toolname = "contour_bin"
-__revision__ = "17 Apr 2014"
+__revision__ = "14 Apr 2015"
 
 
 import numpy as np
@@ -30,6 +30,7 @@ from ciao_contrib.runtool import dmimglasso
 from ciao_contrib.runtool import dmstat
 from ciao_contrib.runtool import dmimgcalc
 from ciao_contrib.runtool import dmcoords
+from ciao_contrib.runtool import dmmaskbin
 import os
 import sys
 import shutil
@@ -127,6 +128,13 @@ def main():
         shutil.move( t4.name, outfile)
 
         os.system( "xpaset -p cmap file "+outfile)
+        
+        if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+            dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
+
+
+
+
         
 
 if __name__ == "__main__":

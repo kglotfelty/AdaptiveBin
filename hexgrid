@@ -19,7 +19,7 @@
 
 
 toolname = "hexgrid"
-__revision__ = "17 Apr 2014"
+__revision__ = "14 Apr 2015"
 
 
 import sys
@@ -139,12 +139,15 @@ class HexagonGrid( ):
 def main():
     # get parameters
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import dmmaskbin
+
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
 
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+    outfile_clobber_checks(pars["clobber"], pars["binimg"] )
 
     #
     # Load image, don't care about the pixel values, just image size
@@ -173,6 +176,9 @@ def main():
     dmImageSetData( out_dd, stipple )
     dmImageClose( out_img )
     dmImageClose( dm_img)
+
+    if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+        dmmaskbin( pars["infile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
 
 
 

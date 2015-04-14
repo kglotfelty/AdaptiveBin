@@ -1,5 +1,6 @@
 infile,f,a,"",,,"Input file"
 outfile,f,a,"",,,"Output file name"
+binimg,f,h,"",,,"Output image file"
 maxradius,r,h,75,0,,"Maximum distance from starting pixel [physical pixels]"
 fraction,r,h,0.2,0,1,"Fraction of starting pixel value to include in group"
 maxcontours,i,h,1000,0,,"Maximum number of regions to create"

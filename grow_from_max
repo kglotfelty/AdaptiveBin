@@ -19,7 +19,7 @@
 
 
 toolname = "grow_from_max"
-__revision__ = "17 Apr 2014"
+__revision__ = "14 Apr 2015"
 
 import os
 import sys
@@ -168,12 +168,14 @@ def main():
     """
     # get parameters
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import dmmaskbin
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
 
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+    outfile_clobber_checks(pars["clobber"], pars["binimg"] )
 
     mask = make_mask( pars["shape"], pars["radius"] )
     
@@ -181,6 +183,10 @@ def main():
     #smooth_at_psfsize( pars["infile"], t1.name, ecf=float(pars["ecf"]), energy=float(pars["energy"]), kernel=pars["function"] )
     find_local_max( pars["infile"], t2.name, mask=mask )
     crystal_growth( t2.name, pars["outfile"], pars["clobber"] )
+    
+    if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+        dmmaskbin( pars["infile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
+
 
 
 if __name__ == "__main__":
