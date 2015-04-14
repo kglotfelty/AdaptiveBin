@@ -44,13 +44,24 @@ verb2 = lgr.verbose2
 verb3 = lgr.verbose3
 verb5 = lgr.verbose5
 
-def CIAOTemporaryFile( *args, **kwargs ):    
-    """
-    Force to use ASCDS_WORK_PATH
-    """
-    from tempfile import NamedTemporaryFile    
-    return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
 
+
+
+class CIAOTemporaryFile():
+    """
+    A little class to make sure that tmpfiles are forcefully removed at end.
+    """
+
+    def __init__( self, *args, **kwargs ):
+        from tempfile import NamedTemporaryFile    
+        self.tmpfile = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
+        self.name = self.tmpfile.name
+
+    def __del__(self):
+        if os.path.exists( self.name ):
+            os.remove( self.name )
+        
+        
 
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
@@ -70,6 +81,7 @@ def main():
     maxrad = float( pars["maxradius"] ) # 75
     nsigma = float( pars["fraction"] ) # 0.2
     maxcntrs = int(pars["maxcontours"] ) # 1000
+    minsize = float( pars["minsize"] )
 
 
     t1 = CIAOTemporaryFile()
@@ -77,10 +89,10 @@ def main():
     t3 = CIAOTemporaryFile()
     t4 = CIAOTemporaryFile()
 
-    t1.close()
-    t2.close()
-    t3.close()
-    t4.close()
+    t1.tmpfile.close()
+    t2.tmpfile.close()
+    t3.tmpfile.close()
+    t4.tmpfile.close()
     
 
     img2 = read_file(infile)
@@ -110,8 +122,11 @@ def main():
 
         
         ff = "[sky=circle({},{},{})][opt full]".format( xc,yc,maxrad)
-        #low=max(1e-12,maxval-nsigma*sqrt(maxval))    
-        low=max(1e-12,maxval-nsigma*maxval)    
+        dmax = maxval*nsigma
+        if dmax < minsize:
+            dmax = minsize
+ 
+        low=max(1e-12,maxval-dmax)    
         num_contours += 1
         print (num_contours,maxval,low)
         dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
