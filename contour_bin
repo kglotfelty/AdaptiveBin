@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "contour_bin"
+__revision__ = "17 Apr 2014"
+
+
+import numpy as np
+from math import sqrt
+from pycrates import *
+
+from ciao_contrib.runtool import dmimglasso
+from ciao_contrib.runtool import dmstat
+from ciao_contrib.runtool import dmimgcalc
+from ciao_contrib.runtool import dmcoords
+import os
+import sys
+import shutil
+
+
+import ciao_contrib.logger_wrapper as lw
+lgr = lw.initialize_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+def CIAOTemporaryFile( *args, **kwargs ):    
+    """
+    Force to use ASCDS_WORK_PATH
+    """
+    from tempfile import NamedTemporaryFile    
+    return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
+
+
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+    """
+    """
+    # get parameters
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+
+    infile= pars["infile"] # "broad_gaus.img" # "abell2029_broad_thresh.img"
+    outfile = pars["outfile"] # "contour.map"
+    maxrad = float( pars["maxradius"] ) # 75
+    nsigma = float( pars["fraction"] ) # 0.2
+    maxcntrs = int(pars["maxcontours"] ) # 1000
+
+
+    t1 = CIAOTemporaryFile()
+    t2 = CIAOTemporaryFile()
+    t3 = CIAOTemporaryFile()
+    t4 = CIAOTemporaryFile()
+
+    t1.close()
+    t2.close()
+    t3.close()
+    t4.close()
+    
+
+    img2 = read_file(infile)
+    vals = img2.get_image().values*1.0
+
+
+    out_mask = np.zeros_like( vals )
+    img2.get_image().values = out_mask
+    write_file( img2, outfile, clobber=True)
+
+    os.system("ds9 -title cmap "+outfile+" &")
+
+    use_img = infile
+    maxval = 100
+    num_contours = 0
+    while num_contours < maxcntrs and maxval > 0:
+        # Trying to do some of this with crates left too many files open
+
+        dmstat( use_img, centroid=False)
+        maxval = float( dmstat.out_max )
+        xc = dmstat.out_max_loc.split(",")[0]
+        yc = dmstat.out_max_loc.split(",")[1]
+
+        dmcoords( infile, asol="", op="sky", x=xc, y=yc )
+        lx = int(float(dmcoords.logicalx)+0.5)
+        ly = int(float(dmcoords.logicaly)+0.5)
+
+        
+        ff = "[sky=circle({},{},{})][opt full]".format( xc,yc,maxrad)
+        #low=max(1e-12,maxval-nsigma*sqrt(maxval))    
+        low=max(1e-12,maxval-nsigma*maxval)    
+        num_contours += 1
+        print (num_contours,maxval,low)
+        dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
+            low_val=low, value="absolute", clobber=True)
+
+        dmimgcalc( use_img+","+t1.name, "none", outfile=t3.name,
+            op="imgout=(img1-(img1*img2))", clobber=True)
+
+        shutil.move( t3.name, t2.name)
+        use_img = t2.name
+        
+        dmimgcalc( outfile+","+t1.name, "none", outfile=t4.name+"[CONTMAP]", 
+            op="imgout=(img1+(img2*{}))".format( num_contours), clobber=True)
+        shutil.move( t4.name, outfile)
+
+        os.system( "xpaset -p cmap file "+outfile)
+        
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)

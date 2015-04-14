@@ -1,0 +1,6 @@
+infile,f,a,"",,,"Input image"
+outfile,f,a,"",,,"Output map"
+minarea,i,h,0,0,,"Minimum area (logical pixels)"
+verbose,i,h,0,0,5,"Tool chatter level"
+clobber,b,h,no,,,"Remove outfile if it already exists?"
+mode,s,h,"ql",,,

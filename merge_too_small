@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "merge_too_small"
+__revision__ = "17 Apr 2014"
+
+import os
+import sys
+import numpy as np
+
+import ciao_contrib.logger_wrapper as lw
+lgr = lw.initialize_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+
+def find_neighbors( mask, maskval ):
+
+    xxyy = np.where( mask == maskval )
+    xy = zip(xxyy[1],xxyy[0])
+    retvals = []
+    for ee in xy:
+
+        for dy in [ee[1]-1, ee[1], ee[1]+1]:
+            if dy < 0 or dy >= mask.shape[0]:
+                continue
+
+            for dx in [ee[0]-1, ee[0], ee[0]+1]:
+                if dx < 0 or dx >= mask.shape[1]:
+                    continue
+
+                if mask[dy, dx] != maskval:
+                    retvals.append( mask[dy,dx] )
+
+    retvals = set(retvals)
+    return list(retvals)
+
+
+def purge_too_small(mask, minarea):    
+    """
+    """
+    mask_max = np.max(mask)
+    while True:
+        hh = np.histogram( mask, bins=mask_max, range=(1,mask_max+1))
+        area = hh[0]
+        maskid = hh[1][:-1]
+        
+        am = zip( area, maskid )
+        am.sort()
+        am = filter( lambda x: x[0]>0, am)
+        
+        if am[0][0] > minarea:
+            break
+
+        print am[0]
+        nn = find_neighbors( mask, am[0][1])
+        if len(nn) == 0:
+            continue
+        
+        nn = [i-1 for i in nn]
+        zz = zip( area[nn],maskid[nn])
+        zz.sort()        
+        replace_val = int(zz[0][1])
+        mask[ np.where( mask == int(am[0][1]) ) ] = replace_val
+        
+
+
+  
+@lw.handle_ciao_errors( toolname, __revision__) 
+def main():
+    """
+    
+    """
+
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+
+    import pycrates as pc
+    inimg = pc.read_file(pars["infile"])
+    mask = inimg.get_image().values
+
+    purge_too_small( mask, int(pars["minarea"]) )
+
+    pc.write_file( inimg, pars["outfile"], clobber=pars["clobber"] )
+
+
+    
+
+
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
+

@@ -1,0 +1,375 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2013 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "image_tempmap"
+__revision__ = "14 April 2014"
+
+
+
+import pycrates as pyc
+import stk
+from sherpa.astro.ui import *
+
+import logging
+slog = logging.getLogger( "sherpa")
+slog.setLevel( logging.ERROR )
+
+import sys
+import os
+
+
+import ciao_contrib.logger_wrapper as lw
+lw.initialize_logger(toolname)
+lgr = lw.get_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+from sherpa.models import Parameter,ArithmeticModel
+import numpy as np
+
+class ExposureMapStack(ArithmeticModel):
+    """
+    This is a special model for fitting x-ray counts extracted from
+    images with an expsoure map.
+
+    The idea is that a stack of counts (interger) images is input
+    and a stack of exposure maps are then also input to act
+    as a table model.
+
+    There are no free parameters in the model; normalization is
+    left upto the other model components.
+    
+    
+    """
+    
+    def __init__(self, name='expstk'):
+        """
+        The sherpa base class does not allow additional
+        parameters after initialization, so we setup the
+        values we want, and then create the x,y indexs.
+
+        x0,y0 are parameter of the model but are not allowed
+        to vary (they must be explicitly set).
+        """
+        self.filename = None
+        self._filenames = None
+        self._crates = None
+        self._livetime = None
+        self.x0 = Parameter( name, "x0", 1, alwaysfrozen=True )
+        self.y0 = Parameter( name, "y0", 1, alwaysfrozen=True )
+        ArithmeticModel.__init__( self, name, ( self.x0, self.y0))
+    
+    def __setattr__( self, name, value ):
+        """
+        When the filename is set, load the data
+        """
+        ArithmeticModel.__setattr__( self, name, value )
+        if (name == "filename") & (value != None):
+            self.load_expstk( self.filename )
+            self.load_expimages()
+
+    def __str__( self ):
+        """
+        Include the file name when the model is printed.
+        """
+        return( ArithmeticModel.__str__(self) +
+            "\n  File names:  " + str( self._filenames) )
+    
+    def load_expstk(self, value):
+        """
+        """
+        try:
+            import stack as stk
+            ss = stk.stk_build( self.filename )
+            self._filenames = [ stk.stk_read_num( ss, ii+1 )
+                        for ii in range(stk.stk_count(ss))]
+        except ImportError:
+            import stk
+            self._filenames = stk.build( self.filename )
+        
+        self.sort__filenames()
+        
+
+    def sort__filenames (self ):
+        """
+        replace with something that pulls energy from hdr and
+        sorts in energy order
+        """
+        pass
+
+        
+    def load_expimages(self):
+        """
+        Load the images
+        """
+        import pycrates as pyc
+        self._crates = [pyc.IMAGECrate( ff, mode="r" ) for ff in self._filenames]
+        """
+        TBD:  Add check here that all images are the same size,wcs, etc
+        TBD:  Add call to set min/max of X and Y to be limits of image
+        """
+        self._livetime = 1.0 / self._crates[0].get_key_value("LIVETIME")
+    
+
+    def calc( self, p, xlo, xhi=None, *args, **kwargs):
+        """
+        The calculation is simply to extract the same
+        x,y pixel value from each image in the input exposure stack
+        and returns those values.
+        """        
+        if len(self._crates) != len(xlo):
+            raise( Exception("I don't know what I'm doing") )
+        vals = np.array([ ii.get_image().values[p[0],p[1]]
+                  for ii in self._crates ]) * self._livetime
+        if None == xhi:
+            pass
+        else:
+            dx = xhi - xlo
+            vals = ( vals / dx )
+        return vals
+
+
+
+
+
+class ImageTMap():
+    
+    def __init__( self, infiles, expfiles ):
+
+        self.crates   = None
+        self.xlo      = None
+        self.ylo      = None
+        self.init_str = None
+        self.ret_str  = None
+        self.savevals = None
+
+        # Todo: check all images have same size
+        # Todo: make sure images are in same order (energy-wise)
+        self._load_image( infiles )
+        #self._setup_exposure_model( expfiles )
+        self.expfiles = expfiles
+
+
+    def _load_image( self, infiles ):
+        """
+        Load image files
+        """
+        file_name = stk.build(infiles)
+        self.crates = [ pyc.IMAGECrate( ff ) for ff in file_name ]
+        #
+        # Get energy range from header
+        #
+        self.xlo = np.array( [f.get_key_value("ENERGYLO") for f in self.crates ] )
+        self.xhi = np.array( [f.get_key_value("ENERGYHI") for f in self.crates ] )
+
+
+    def _setup_exposure_model( self ):
+        #
+        # Create our custom table-like model
+        #
+        #
+        self.exposure_model = exposuremapstack.exposure_model()
+
+        #
+        # Setting the filename loads the files; the magic of Python
+        #
+        self.exposure_model.filename=self.expfiles
+
+
+    def _do_fit( self, xy, plot=None ):
+
+        """
+        Perform a fit for a given x,y location
+        """
+
+        # Get the same x,y value from all images
+        xx = xy[0]
+        yy = xy[1]
+        vals = np.array([ ii.get_image().values[yy,xx] for ii in self.crates ])
+
+        # we check that at least 3 images have non-zero data 
+        idx,=np.where( vals != 0 )
+        if ( len(idx) < 3 ):
+            return np.nan
+        
+        try:
+            #
+            # Load values.  Data are integrated 
+            # 
+            load_arrays( 1, self.xlo, self.xhi, vals, Data1DInt )
+
+            # Set the user definined source, then multiply that by the
+            # exposure model
+            srcmodel = eval( self.model )
+            self._setup_exposure_model()
+            set_source( srcmodel * self.exposure_model )
+
+            # inital settings, guesses, min, freeze/thaw, etc
+            exec(self.init_str)
+
+            # Setting x0,y0 values in the exposure model picks values
+            # in the image
+            self.exposure_model.x0 = xx
+            self.exposure_model.y0 = yy
+
+            fit()
+            if plot:
+                plot()
+
+            retval = eval( self.ret_str ) *1.0
+
+        except Exception, e:
+            print e
+            retval = np.nan
+        
+        return retval
+
+
+    def set_source( self, model, init_str, ret_str ):
+        """
+        Define the source model expression.
+        The initialization string
+        The vaule to return
+        """
+        
+        self.model    = model
+        self.init_str = init_str
+        self.ret_str  = ret_str
+
+
+    def __ifit( self, ii, jj, plot=None ):
+        """
+        Do a single fit at one i,j location for diagnostics
+        """
+        self.do_fit( [ii-1,jj-1], plot=plot )
+
+
+    def fit(self):
+        #
+        # For every pixel, fit the model and save the value
+        #
+        img_data = self.crates[0].get_image().values
+        xlen = len(img_data[0])
+        ylen = len(img_data)
+
+        ii = map(float, range(xlen) * ylen)
+        jj = map(float, np.repeat( range(ylen), xlen ))
+
+        #
+        # Something bad happens when I try to use parallel fit
+        # here.  The returned results look garbled.
+        from sherpa.utils import parallel_map 
+        from itertools import izip
+
+        coords = np.array(zip(ii,jj))
+        np.random.shuffle(coords)
+
+        od = parallel_map( self._do_fit, coords.tolist() )
+
+        self.savedata = np.zeros( [ ylen, xlen ] )
+        
+        for xy,val in izip(coords,od):
+            self.savedata[xy[1]][xy[0]] = val
+
+        #od = map( self._do_fit, zip(ii, jj) )
+        #self.savedata = np.array( od ).reshape( [ylen, xlen ] ) 
+
+
+
+    def save(self, outfile, clobber ):
+        #
+        # Save the data; not even trying to copy header, WCS, etc.  Just
+        # create a simple image.
+        #
+        outcrated = pyc.CrateData()
+        outcrated.values = self.savedata
+        outcratei = pyc.IMAGECrate()
+        outcratei.add_image( outcrated)
+       
+        pyc.write_file( outcratei, outfile, clobber=clobber)
+
+#
+# Main Routine
+#
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+    
+    add_model(ExposureMapStack)
+
+
+    tmap = ImageTMap( pars["infile"], pars["expfile"] )
+    tmap.set_source( pars["srcmodel"], pars["initialization"], pars["return_value"] )
+    tmap.fit()
+    tmap.save(pars["outfile"], pars["clobber"])
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
+  
+
+
+
+
+
+        
+"""
+
+infile="../../../CIAO46/9399/repro/optical_realistic_model/flximg*thresh.img"
+expfile="../../../CIAO46/9399/repro/optical_realistic_model/flximg*thresh.expmap"
+srcmodel="xswabs.absrb * xsapec.thrm"
+init_str='''
+set_method("neldermead");
+absrb.nH = 0.0494;
+thrm.kT = 0.9;
+thrm.kT.max = 5;
+thrm.redshift = 0.009;
+freeze(absrb.nH)
+'''
+retval = "thrm.kT.val"
+
+tmap = ImageTMap( infile, expfile )
+tmap.set_source( srcmodel, init_str, retval )
+tmap.fit()
+tmap.save("foobar")
+
+"""
+
+
+
+
+
+
+

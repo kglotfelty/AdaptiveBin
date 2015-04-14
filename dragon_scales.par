@@ -1,0 +1,6 @@
+infile,f,a,"",,,"Input image"
+psffile,f,a,"",,,"Input PSF size file or single number"
+outfile,f,a,"",,,"Output map"
+verbose,i,h,0,0,5,"Tool chatter level"
+clobber,b,h,no,,,"Remove outfile if it already exists?"
+mode,s,h,"ql",,,

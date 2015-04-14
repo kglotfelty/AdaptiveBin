@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2014 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "grow_from_max"
+__revision__ = "17 Apr 2014"
+
+import os
+import sys
+
+import ciao_contrib.logger_wrapper as lw
+lgr = lw.initialize_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+def CIAOTemporaryFile( *args, **kwargs ):    
+    """
+    Force to use ASCDS_WORK_PATH
+    """
+    from tempfile import NamedTemporaryFile    
+    return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
+
+
+def smooth_at_psfsize( infile, outfile, energy=1.5, ecf=0.9, kernel="gaus"):
+    """
+    TODO:  Works best if data are pre-smoothed.  But not sure
+    forcing users to do it here is best so for now this routine isn't used.
+
+    Smooth the image at the size of the PSF.  
+    """
+    from ciao_contrib.runtool import mkpsfmap
+    from ciao_contrib.runtool import dmimgcalc
+    from ciao_contrib.runtool import dmimgadapt
+
+    t1 = CIAOTemporaryFile()
+    t2 = CIAOTemporaryFile()
+
+    verb1("Smoothing data at size of PSF")
+
+    mkpsfmap( infile+"[subspace -sky]" , t1.name, energy=energy, ecf=ecf, unit="logical", clobber=True)
+    dmimgcalc( t1.name+"[opt null=0]", infile2="", outfile=t2.name, op="imgout=((int)(img1*10.0))/10.0", clobber=True)
+    dmimgadapt( infile, outfile, function=kernel, inradfile=t2.name, clobber=True)
+    
+
+def find_local_max( infile, outfile, mask="box(0,0,5,5)"):
+    """
+    Identify the local peaks in the data.  Value must be the max() valein the
+    mask region around the pixel (must be strictly > all surrounding pixels)
+    """
+    from ciao_contrib.runtool import dmimgfilt
+    from ciao_contrib.runtool import dmimgblob
+
+    verb1("Finding local maxima")
+
+    t1 = CIAOTemporaryFile()
+    dmimgfilt( infile, t1.name, function="peak", mask=mask, clobber=True)
+    dmimgblob( t1.name, outfile, thresh=0, src=True, clobber=True )
+
+def make_mask( shape, radius ):
+    """
+    
+    """
+    
+    if "circle" == shape:
+        return "circle(0,0,{})".format(radius)
+    elif "box" == shape:
+        r = float(radius)*2.0
+        return "box(0,0,{},{})".format(r,r)
+    else:
+        raise RuntimeError("Unknown shape '{}'".format(shape))
+
+
+
+def _crystal_growth( vv ):
+    """
+    Main loop, removed from below for readability
+    """
+    ylen = vv.shape[0]
+    xlen = vv.shape[1]
+    npts = 0
+
+    # make a copy of the current pixel values
+    cc = vv.copy()
+
+    # Loop over all pixels
+    for yy in xrange(ylen):
+        for xx in xrange(xlen):            
+            # If pixel has already been assigned, then skip it
+            if cc[yy,xx] != 0:
+                continue
+
+            # Keep track of how many pixels updated. Stop when npts=0
+            npts = npts + 1
+
+            # Initialize output; set to current value
+            maxval = cc[yy,xx]
+
+            # Loop +/- 1 in each x and y to look for value > maxval
+            # We look in the copy, cc, which is not updated until next
+            # interation.
+            for dy in [-1,0,1]:
+                dyy = yy+dy
+                if dyy< 0 or dyy >= ylen:
+                    continue
+                for dx in [-1,0,1]:
+                    dxx = xx+dx
+                    if dxx < 0 or dxx >= xlen:
+                        continue                    
+                    maxval = max( maxval, cc[dyy,dxx] )
+            
+            # Save the maxval in the output
+            vv[yy,xx] = maxval
+
+    return npts
+    
+
+def crystal_growth( infile, outfile, clobber ):
+    """
+    Given a set of local max, grow the regions until they touch and
+    cover the image
+    """
+    from pycrates import read_file, write_file
+
+    verb1("Assigning pixels to maxima")
+
+    # Load data
+    img = read_file(infile+"[1][localmax]")
+    imgd = img.get_image()
+    vv = imgd.values
+
+    # Loop until all pixel are assigned 
+    while True:
+        # Stop when all pixels have been assigned.
+        npts = _crystal_growth(vv)
+        print npts
+        if 0 == npts:
+            break
+
+    # Save the values 
+    imgd.values = vv
+    write_file( img, outfile, clobber=clobber)
+
+
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+    """
+    
+    """
+    # get parameters
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+
+    mask = make_mask( pars["shape"], pars["radius"] )
+    
+    t2 = CIAOTemporaryFile()
+    #smooth_at_psfsize( pars["infile"], t1.name, ecf=float(pars["ecf"]), energy=float(pars["energy"]), kernel=pars["function"] )
+    find_local_max( pars["infile"], t2.name, mask=mask )
+    crystal_growth( t2.name, pars["outfile"], pars["clobber"] )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
+
+
+

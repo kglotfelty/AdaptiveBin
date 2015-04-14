@@ -1,0 +1,215 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2013 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "multi_spec"
+__revision__ = "13 April 2015"
+
+import sys
+
+import pycrates as pyc
+import numpy as np
+from sherpa.astro.ui import *
+
+import logging
+slog = logging.getLogger( "sherpa")
+slog.setLevel( logging.ERROR )
+
+import ciao_contrib.logger_wrapper as lw
+lw.initialize_logger(toolname)
+lgr = lw.get_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+def load_bkg_array( channel, data ):
+    """
+    Since there is no dedicated load_bkg_array routine we have
+    to load background as a source, then
+    get and set to be assocated with source 1.
+    """
+    load_arrays("delete_me", channel, data, DataPHA)
+
+    set_bkg( 1, get_data("delete_me"))
+    delete_data( "delete_me")
+
+
+def _get_arf( grid, arffile ):    
+    """
+    Handle single vs. multi arfs
+    """
+    try:
+        load_arf( arffile )
+    except:
+        load_arf("{0}_{1}.arf".format( arffile, grid+1 ) )
+
+
+class MultiSpectrum():    
+    def __init__( self, infile, bkgfile ):
+        # 
+        # The spectrum is stored at a 2D image where:
+        #
+        #   x: [1] is mask number
+        #   y: [0] is channel
+        #   z: counts
+        ms_img=pyc.read_file(infile)
+        self.ms_vals=ms_img.get_image().values
+        self.exposure = ms_img.get_key_value("EXPOSURE")
+
+        if bkgfile:
+            bg_img=pyc.read_file(bkgfile)
+            self.bg_vals=bg_img.get_image().values
+            self.bg_exposure = bg_img.get_key_value("EXPOSURE")
+            if self.ms_vals.shape != self.bg_vals.shape:
+                raise RuntimeError("Source and background spectrum must be same size")
+        else:
+            self.bg_vals = None
+            self.bg_exposure = None
+
+
+    def set_responses( self, arffile, rmffile ):
+        self.arffile = arffile
+        self.rmffile = rmffile
+
+    
+    def set_model( self, model, init, retval ):
+        self.model = model
+        self.init_str = init 
+        self.retstr = retval 
+
+
+    def my_fit( self, grid ):
+        verb2("Fitting mask_id={}".format(grid+1))
+
+        try:
+            channel = np.arange(self.ms_vals.shape[0])+1  # Channels go 1 to N
+            set_source(self.model)
+
+            # load column from image into a PHA dataset
+            # todo: backscale (assumes to be 1)
+            load_arrays(1, channel, self.ms_vals[:,grid], DataPHA)
+            set_exposure(1, self.exposure)
+
+            if self.bg_vals != None:
+                load_bkg_array( channel, self.bg_vals[:,grid])
+                set_exposure( 1, self.bg_exposure, 1)
+                subtract()
+
+            _get_arf( grid, self.arffile )
+            load_rmf(self.rmffile)
+            exec(self.init_str)
+            fit()
+            return eval(self.retstr)
+        except Exception, e:
+            print e
+            return np.nan
+
+
+    def fit( self ):
+        #
+        # Setup arrays
+        #
+        nspec   = self.ms_vals.shape[1]
+        maskids = np.arange(nspec)
+        np.random.shuffle(maskids) # randomize things so parallel map has better shot at keeping queue full
+        
+        #
+        # Iterate over grid of points
+        #
+        from sherpa.utils import parallel_map 
+        savedata = parallel_map( self.my_fit, maskids.tolist() )
+
+        #
+        # Savedata are now in random order, want to sort 
+        #
+        od = zip( (maskids+1).tolist(), savedata)
+        od.sort()
+        self.mask_id = [ x[0] for x in od ]
+        self.ret_val = [ x[1] for x in od ]
+
+    def save(self, outfile, clobber):
+        #
+        # Save data
+        # 
+        
+        cols = self.retstr+""
+        for d in "().":
+            cols = cols.replace(d,"_")
+        
+        while '__' in cols:
+            cols = cols.replace("__", "_")
+
+        cols = cols.split(",")
+        
+        savecols = {}
+        for c in cols:
+            savecols[c] = []
+        
+        for v in self.ret_val:
+            try:
+                for i in range(len(v)):
+                    savecols[cols[i]].append(v[i])
+            except:
+                savecols[cols[0]].append(v)
+
+
+        savecols["mask_id"] = self.mask_id
+        cols.insert(0, "mask_id")
+
+        from crates_contrib.utils import write_columns
+        write_columns( outfile, savecols, colnames=cols, clobber=clobber, format="fits")
+
+
+
+
+
+
+
+#
+# Main Routine
+#
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    from ciao_contrib._tools.fileio import outfile_clobber_checks
+    outfile_clobber_checks(pars["clobber"], pars["outfile"] )
+
+    multi = MultiSpectrum( pars["infile"], pars["bkgfile"] )
+    multi.set_responses( pars["arffile"], pars["rmffile"] )
+    multi.set_model( pars["srcmodel"], pars["initialization"], pars["return_value"] )
+    multi.fit()
+    multi.save( pars["outfile"], pars["clobber"] )
+    
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
+  
+

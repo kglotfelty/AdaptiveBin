@@ -1,0 +1,8 @@
+infile,f,a,"",,,"Input file"
+outfile,f,a,"",,,"Output file name"
+maxradius,r,h,75,0,,"Maximum distance from starting pixel [physical pixels]"
+fraction,r,h,0.2,0,1,"Fraction of starting pixel value to include in group"
+maxcontours,i,h,1000,0,,"Maximum number of regions to create"
+verbose,i,h,0,0,5,"Tool chatter level"
+clobber,b,h,no,,,"Remove outfile if it already exists?"
+mode,s,h,"ql",,,

@@ -1,0 +1,7 @@
+infile,f,a,"",,,"Input image"
+outfile,f,a,"",,,"Output map"
+shape,s,h,"box","box|circle",,"Shape of local max mask"
+radius,r,h,2.5,0,,"Radius of local max mask"
+verbose,i,h,0,0,5,"Tool chatter level"
+clobber,b,h,no,,,"Remove outfile if it already exists?"
+mode,s,h,"ql",,,
