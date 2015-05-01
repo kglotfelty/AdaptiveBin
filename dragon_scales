@@ -19,7 +19,7 @@
 
 
 toolname = "dragon_scales"
-__revision__ = "14 Apr 2015"
+__revision__ = "01 May 2015"
 
 import os
 import sys
@@ -40,9 +40,9 @@ from cxcdm import *
 # pixels inside the region.  Can post-filter with dmimgthresh,
 # but since this is slow, should skip here rather than filter later
 
-class DragonScales():
+class OverlappingShapes():
     
-    def __init__(self, infile, psffile):
+    def __init__(self, infile, psffile ):
         """
         """
         from pycrates import read_file
@@ -65,11 +65,13 @@ class DragonScales():
         """
         return self.pmap[yy,xx]
 
+    @staticmethod
+    def inside( dx, dy, rad ):
+        raise NotImplementedError("Please implement this in the subclass")
         
     def set_mask( self, xx, yy, maskval ):
         """
         """
-        from math import hypot
 
         rad = int(self.get_psfsize( xx, yy )+0.5)
 
@@ -83,7 +85,7 @@ class DragonScales():
                 if self.mask[_y,_x] != 0:
                     continue            
                 dx = xx-_x
-                if hypot( dx, dy) <= rad:
+                if self.inside( dx, dy, rad):
                     self.mask[_y, _x] = maskval
                     self.vals[_y, _x] = self.nullval
 
@@ -125,6 +127,24 @@ class DragonScales():
         dmImageClose( out_img )
         dmImageClose( dm_img)
 
+class RoofingTiles( OverlappingShapes ):
+    """
+    Use square shapes
+    """
+    @staticmethod
+    def inside( dx, dy, rad ):        
+        return (max( [dx,dy] ) < rad)
+
+class DragonScales( OverlappingShapes ):
+    """
+    Use circular shapes
+    """
+    @staticmethod
+    def inside( dx, dy, rad ):
+        from math import hypot
+        return (hypot( dx, dy) <= rad)
+    
+
 
                 
    
@@ -136,6 +156,8 @@ def main():
 
     from ciao_contrib.param_soaker import get_params
     from ciao_contrib.runtool import dmmaskbin
+    from ciao_contrib.runtool import add_tool_history
+
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
@@ -144,12 +166,20 @@ def main():
     outfile_clobber_checks(pars["clobber"], pars["outfile"] )
     outfile_clobber_checks(pars["clobber"], pars["binimg"] )
 
-    dragon = DragonScales( pars["infile"], pars["psffile"] )
+    if "circle" == pars["shape"]:
+        dragon = DragonScales( pars["infile"], pars["psffile"] )
+    elif "square" == pars["shape"]:
+        dragon = RoofingTiles(  pars["infile"], pars["psffile"] )
+    else:
+        raise ValueError("Unknown shape value {}".format(pars["shape"]))
+
     dragon.doit()
     dragon.save( pars["outfile"] )
-    
-    if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+    add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
+
+    if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
         dmmaskbin( pars["infile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
+        add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
 
     
 
