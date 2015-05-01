@@ -19,7 +19,7 @@
 
 
 toolname = "contour_bin"
-__revision__ = "14 Apr 2015"
+__revision__ = "01 May 2015"
 
 
 import numpy as np
@@ -69,6 +69,8 @@ def main():
     """
     # get parameters
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import add_tool_history
+
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
@@ -78,7 +80,8 @@ def main():
 
     infile= pars["infile"] # "broad_gaus.img" # "abell2029_broad_thresh.img"
     outfile = pars["outfile"] # "contour.map"
-    maxrad = float( pars["maxradius"] ) # 75
+    maxrad = float( pars["distance"] ) # 75
+    maxshape = pars["shape"]  # "circle"
     nsigma = float( pars["fraction"] ) # 0.2
     maxcntrs = int(pars["maxcontours"] ) # 1000
     minsize = float( pars["minsize"] )
@@ -104,6 +107,7 @@ def main():
     write_file( img2, outfile, clobber=True)
 
     os.system("ds9 -title cmap "+outfile+" &")
+    os.system("sleep 5")
 
     use_img = infile
     maxval = 100
@@ -120,8 +124,14 @@ def main():
         lx = int(float(dmcoords.logicalx)+0.5)
         ly = int(float(dmcoords.logicaly)+0.5)
 
-        
-        ff = "[sky=circle({},{},{})][opt full]".format( xc,yc,maxrad)
+
+        if "circle" == maxshape:
+            ff = "[sky=circle({},{},{})][opt full]".format( xc,yc,maxrad)
+        elif "box" == maxshape:
+            ff = "[sky=box({0},{1},{2},{2})][opt full]".format( xc,yc,maxrad*2.0)
+        else:
+            raise ValueError("Unknown shape")
+
         dmax = maxval*nsigma
         if dmax < minsize:
             dmax = minsize
@@ -142,12 +152,17 @@ def main():
             op="imgout=(img1+(img2*{}))".format( num_contours), clobber=True)
         shutil.move( t4.name, outfile)
 
+
         os.system( "xpaset -p cmap file "+outfile)
         
-        if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+        if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
             dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
 
+    # End while
 
+    add_tool_history( outfile, toolname, pars, toolversion=__revision__)
+    if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
+        add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
 
 
         

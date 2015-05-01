@@ -1,0 +1,132 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2013 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+
+toolname = "make_mkwarf_map"
+__revision__ = "01 May 2015"
+
+
+
+import os
+import sys
+
+import ciao_contrib.logger_wrapper as lw
+lw.initialize_logger(toolname)
+lgr = lw.get_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb5 = lgr.verbose5
+
+
+def make_warf( regid, pars ):
+    
+    from ciao_contrib.runtool import dmimgthresh
+    from ciao_contrib.runtool import dmimgcalc
+    from ciao_contrib.runtool import sky2tdet
+    from ciao_contrib.runtool import mkwarf
+    from ciao_contrib.runtool import dmhedit
+    from ciao_contrib.runtool import dmstat as dmst
+    from tempfile import NamedTemporaryFile
+    
+    t1 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
+    t2 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
+    t3 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
+    t4 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
+
+    infile = pars["mapfile"]  # 
+    img    = pars["infile"] # "../img.fits"
+    root   = pars["outroot"]     # "BArfs/out"
+    rmf    = pars["rmffile"]     # "rmf.fits"
+    ahst   = pars["asphistfile"] # "ahist.fits"
+    msk    = pars["maskfile"]    # "../acisf09399_000N002_msk1.fits"
+    bpix   = pars["bpixfile"]    # "../acisf09399_repro_bpix1.fits"
+    
+    oroot = "{}_{}".format(root, regid)
+
+    verb3("Processing "+oroot)
+
+    try:
+        dmimgthresh( infile+"[opt type=i4]", t1.name, cut="{0}:{0}".format(regid), value=0, clobber=True )
+        dmimgcalc( "{},{}".format(img,t1.name),"none", t2.name, op="imgout=(1.0*img1*img2)/{}".format(regid), clobber=True)
+        dmst( t2.name, centroid=False)
+        if float(dmst.out_sum) == 0:
+            return
+        sky2tdet( t2.name, ahst, t3.name+"[wmap]", clobber=True )
+        mkwarf( t3.name, oroot+".arf", t4.name, spectrum="",
+          egrid="grid({}[cols energ_lo,energ_hi])".format(rmf),
+          msk=msk, clobber=True )
+        dmhedit( oroot+".arf", file="", op="add", key="GRIDVAL", value=regid)
+    except Exception, e:
+        print e
+
+
+
+#
+# Main Routine
+#
+@lw.handle_ciao_errors( toolname, __revision__)
+def main():
+    from ciao_contrib.param_soaker import get_params
+    # Load parameters
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+
+    
+    import ciao_contrib.ancillaryfiles as anc
+    
+    ff = anc.find_ancillary_files( pars["infile"], ["mask", "bpix"] )    
+    print ff
+    fm = ff[0]
+    fb = ff[1]
+    
+    pars["maskfile"] = fm[0] if not pars["maskfile"] else pars["maskfile"]
+    pars["bpixfile"] = fb[0] if not pars["bpixfile"] else pars["bpixfile"]
+
+
+    from ciao_contrib.runtool import dmstat
+    dmstat( pars["mapfile"], centroid=False, verbose=0)
+    maxval = int(dmstat.out_max)
+    print maxval
+
+    from ciao_contrib.runtool import acis_set_ardlib
+    acis_set_ardlib( pars["bpixfile"], verbose=0 )
+
+    from ciao_contrib.runtool import new_pfiles_environment
+    with new_pfiles_environment( ardlib=True ):
+        from ciao_contrib._tools.taskrunner import TaskRunner
+        taskrunner = TaskRunner()
+        for ii in xrange( 1, maxval+1):
+            taskrunner.add_task( "warf"+str(ii), "", make_warf, ii, pars )
+        taskrunner.run_tasks()
+
+
+
+
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, E:
+        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+        sys.exit(1)
+    sys.exit(0)
+  

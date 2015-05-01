@@ -19,7 +19,7 @@
 
 
 toolname = "grow_from_max"
-__revision__ = "14 Apr 2015"
+__revision__ = "01 May 2015"
 
 import os
 import sys
@@ -169,6 +169,8 @@ def main():
     # get parameters
     from ciao_contrib.param_soaker import get_params
     from ciao_contrib.runtool import dmmaskbin
+    from ciao_contrib.runtool import add_tool_history
+
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
@@ -183,9 +185,11 @@ def main():
     #smooth_at_psfsize( pars["infile"], t1.name, ecf=float(pars["ecf"]), energy=float(pars["energy"]), kernel=pars["function"] )
     find_local_max( pars["infile"], t2.name, mask=mask )
     crystal_growth( t2.name, pars["outfile"], pars["clobber"] )
+    add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
     
-    if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+    if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
         dmmaskbin( pars["infile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
+        add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
 
 
 

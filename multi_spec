@@ -19,7 +19,7 @@
 
 
 toolname = "multi_spec"
-__revision__ = "14 April 2015"
+__revision__ = "01 May 2015"
 
 import sys
 import os
@@ -155,10 +155,11 @@ class MultiSpectrum():
         self.mask_id = [ x[0] for x in od ]
         self.ret_val = [ x[1] for x in od ]
 
-    def save(self, outroot, infile, clobber):
+    def save(self, outroot, infile, clobber, pars):
         #
         # Save data
         # 
+        from ciao_contrib.runtool import add_tool_history
 
         outfile = outroot+".dat"
         
@@ -182,12 +183,14 @@ class MultiSpectrum():
 
         from crates_contrib.utils import write_columns
         write_columns( outfile, savecols, colnames=cols, clobber=clobber, format="fits")
+        add_tool_history( outfile, toolname, pars, toolversion=__revision__)
 
         # Save images of each returned parameter value
         
         dmf = make_tool("dmmaskfill")
         for c in cols[1:]:
             dmf( outfile+"[cols mask_id,{}]".format(c), infile+"[opt type=i4]", outroot+".{}.map".format(c), clobber=True)
+            add_tool_history( outroot+".{}.map".format(c), toolname, pars, toolversion=__revision__)
         
 
 
@@ -255,7 +258,7 @@ def main():
     multi.set_responses( pars["arffile"], pars["rmffile"] )
     multi.set_model( pars["srcmodel"], pars["initialization"], pars["return_value"] )
     multi.fit()
-    multi.save( pars["outroot"], pars["infile"], pars["clobber"] )
+    multi.save( pars["outroot"], pars["infile"], pars["clobber"], pars )
 
 
     

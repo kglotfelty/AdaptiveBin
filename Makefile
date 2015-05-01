@@ -3,8 +3,8 @@ DEV  = /data/da/Docs/scripts/dev
 
 CP_F = /bin/cp -f
 
-BIN = contour_bin dragon_scales grow_from_max hexgrid image_tempmap merge_too_small multi_spec mkregmap
-PAR = contour_bin.par dragon_scales.par grow_from_max.par hexgrid.par image_tempmap.par merge_too_small.par multi_spec.par mkregmap.par
+BIN = contour_bin dragon_scales grow_from_max hexgrid image_tempmap merge_too_small multi_spec mkregmap make_mkwarf_map
+PAR = contour_bin.par dragon_scales.par grow_from_max.par hexgrid.par image_tempmap.par merge_too_small.par multi_spec.par mkregmap.par make_mkwarf_map.par
 
 all: 
 	$(CP_F) $(BIN) $(ROOT)/bin/

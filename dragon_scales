@@ -109,7 +109,7 @@ class OverlappingShapes():
         maskval = 0
         while 0 == np.min(self.mask):
             maskval = maskval + 1
-            print maskval
+            verb3(str(maskval))
             ly,lx = self.get_loc_max()
             self.set_mask( lx, ly, maskval )
 
@@ -133,7 +133,7 @@ class RoofingTiles( OverlappingShapes ):
     """
     @staticmethod
     def inside( dx, dy, rad ):        
-        return (max( [dx,dy] ) < rad)
+        return (max( [abs(dx),abs(dy)] ) <= rad)
 
 class DragonScales( OverlappingShapes ):
     """
@@ -144,9 +144,14 @@ class DragonScales( OverlappingShapes ):
         from math import hypot
         return (hypot( dx, dy) <= rad)
     
+class Diamonds( OverlappingShapes ):
+    """
+    Use city-block distance
+    """
+    @staticmethod
+    def inside( dx, dy, rad ):
+        return (abs(dx)+abs(dy) <= rad)
 
-
-                
    
 @lw.handle_ciao_errors( toolname, __revision__) 
 def main():
@@ -168,8 +173,10 @@ def main():
 
     if "circle" == pars["shape"]:
         dragon = DragonScales( pars["infile"], pars["psffile"] )
-    elif "square" == pars["shape"]:
+    elif "box" == pars["shape"]:
         dragon = RoofingTiles(  pars["infile"], pars["psffile"] )
+    elif "diamond" == pars["shape"]:
+        dragon = Diamonds(  pars["infile"], pars["psffile"] )
     else:
         raise ValueError("Unknown shape value {}".format(pars["shape"]))
 

@@ -21,7 +21,7 @@
 
 
 toolname = "mkregmap"
-__revision__ = "14 Apr 2015"
+__revision__ = "01 May 2015"
 
 import sys
 import os

@@ -19,7 +19,7 @@
 
 
 toolname = "merge_too_small"
-__revision__ = "14 Apr 2015"
+__revision__ = "01 May 2015"
 
 import os
 import sys
@@ -95,6 +95,7 @@ def main():
 
     from ciao_contrib.param_soaker import get_params
     from ciao_contrib.runtool import dmmaskbin
+    from ciao_contrib.runtool import add_tool_history
 
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
@@ -111,9 +112,11 @@ def main():
     purge_too_small( mask, int(pars["minarea"]) )
 
     pc.write_file( inimg, pars["outfile"], clobber=pars["clobber"] )
+    add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
 
-    if len(pars["binimg"])>0 and "none" != pars["binimg"]:
+    if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
         dmmaskbin( pars["imgfile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
+        add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
 
     
 
