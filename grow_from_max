@@ -41,27 +41,6 @@ def CIAOTemporaryFile( *args, **kwargs ):
     return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
 
 
-def smooth_at_psfsize( infile, outfile, energy=1.5, ecf=0.9, kernel="gaus"):
-    """
-    TODO:  Works best if data are pre-smoothed.  But not sure
-    forcing users to do it here is best so for now this routine isn't used.
-
-    Smooth the image at the size of the PSF.  
-    """
-    from ciao_contrib.runtool import mkpsfmap
-    from ciao_contrib.runtool import dmimgcalc
-    from ciao_contrib.runtool import dmimgadapt
-
-    t1 = CIAOTemporaryFile()
-    t2 = CIAOTemporaryFile()
-
-    verb1("Smoothing data at size of PSF")
-
-    mkpsfmap( infile+"[subspace -sky]" , t1.name, energy=energy, ecf=ecf, unit="logical", clobber=True)
-    dmimgcalc( t1.name+"[opt null=0]", infile2="", outfile=t2.name, op="imgout=((int)(img1*10.0))/10.0", clobber=True)
-    dmimgadapt( infile, outfile, function=kernel, inradfile=t2.name, clobber=True)
-    
-
 def find_local_max( infile, outfile, mask="box(0,0,5,5)"):
     """
     Identify the local peaks in the data.  Value must be the max() valein the
@@ -76,6 +55,7 @@ def find_local_max( infile, outfile, mask="box(0,0,5,5)"):
     dmimgfilt( infile, t1.name, function="peak", mask=mask, clobber=True)
     dmimgblob( t1.name, outfile, thresh=0, src=True, clobber=True )
 
+
 def make_mask( shape, radius ):
     """
     
@@ -88,7 +68,6 @@ def make_mask( shape, radius ):
         return "box(0,0,{},{})".format(r,r)
     else:
         raise RuntimeError("Unknown shape '{}'".format(shape))
-
 
 
 def _crystal_growth( vv ):
@@ -182,7 +161,6 @@ def main():
     mask = make_mask( pars["shape"], pars["radius"] )
     
     t2 = CIAOTemporaryFile()
-    #smooth_at_psfsize( pars["infile"], t1.name, ecf=float(pars["ecf"]), energy=float(pars["energy"]), kernel=pars["function"] )
     find_local_max( pars["infile"], t2.name, mask=mask )
     crystal_growth( t2.name, pars["outfile"], pars["clobber"] )
     add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
