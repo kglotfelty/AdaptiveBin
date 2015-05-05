@@ -19,7 +19,7 @@
 
 
 toolname = "image_tempmap"
-__revision__ = "14 April 2014"
+__revision__ = "01 May 2015"
 
 
 
@@ -167,8 +167,8 @@ class ImageTMap():
         # Todo: check all images have same size
         # Todo: make sure images are in same order (energy-wise)
         self._load_image( infiles )
-        #self._setup_exposure_model( expfiles )
         self.expfiles = expfiles
+        self._setup_exposure_model( )
 
 
     def _load_image( self, infiles ):
@@ -183,19 +183,12 @@ class ImageTMap():
         self.xlo = np.array( [f.get_key_value("ENERGYLO") for f in self.crates ] )
         self.xhi = np.array( [f.get_key_value("ENERGYHI") for f in self.crates ] )
 
-
     def _setup_exposure_model( self ):
-        #
-        # Create our custom table-like model
-        #
-        #
+        """
+        Setup the exposure map model, only load once
+        """
         self.exposure_model = exposuremapstack.exposure_model()
-
-        #
-        # Setting the filename loads the files; the magic of Python
-        #
         self.exposure_model.filename=self.expfiles
-
 
     def _do_fit( self, xy, plot=None ):
 
@@ -222,7 +215,7 @@ class ImageTMap():
             # Set the user definined source, then multiply that by the
             # exposure model
             srcmodel = eval( self.model )
-            self._setup_exposure_model()
+
             set_source( srcmodel * self.exposure_model )
 
             # inital settings, guesses, min, freeze/thaw, etc
@@ -282,10 +275,13 @@ class ImageTMap():
         from sherpa.utils import parallel_map 
         from itertools import izip
 
-        coords = np.array(zip(ii,jj))
-        np.random.shuffle(coords)
+        #coords = np.array(zip(ii,jj))
+        ##np.random.shuffle(coords)
 
-        od = parallel_map( self._do_fit, coords.tolist() )
+        coords = zip(ii,jj)
+
+        #od = parallel_map( self._do_fit, coords )
+        od = map( self._do_fit, coords )
 
         self.savedata = np.zeros( [ ylen, xlen ] )
         
@@ -315,6 +311,8 @@ class ImageTMap():
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import add_tool_history
+
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
@@ -324,12 +322,13 @@ def main():
     
     add_model(ExposureMapStack)
 
-
     tmap = ImageTMap( pars["infile"], pars["expfile"] )
     tmap.set_source( pars["srcmodel"], pars["initialization"], pars["return_value"] )
     tmap.fit()
-    tmap.save(pars["outfile"], pars["clobber"])
 
+    tmap.save(pars["outfile"], pars["clobber"])
+    add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
+    
 
 if __name__ == "__main__":
     try:
