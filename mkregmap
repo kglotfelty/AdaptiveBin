@@ -150,6 +150,7 @@ def main():
 
     # get parameters
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import dmmaskbin
     # Load parameters
     pars = get_params(toolname, "rw", sys.argv, 
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
@@ -165,6 +166,11 @@ def main():
 
     from ciao_contrib.runtool import add_tool_history
     add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
+
+    if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
+        dmmaskbin( pars["infile"], pars["outfile"]+"[opt type=i4]", pars["binimg"], clobber=True)
+        add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
+
 
 
 if __name__ == "__main__":
