@@ -82,7 +82,10 @@ def main():
     outfile = pars["outfile"] # "contour.map"
     maxrad = float( pars["distance"] ) # 75
     maxshape = pars["shape"]  # "circle"
-    nsigma = float( pars["fraction"] ) # 0.2
+    ###nsigma = float( pars["fraction"] ) # 0.2
+    levels = int( pars["levels"] )
+    scale = pars["scale"]
+
     maxcntrs = int(pars["maxcontours"] ) # 1000
     minsize = float( pars["minsize"] )
 
@@ -101,6 +104,24 @@ def main():
     img2 = read_file(infile)
     vals = img2.get_image().values*1.0
 
+    minval = np.min(vals[vals>0])
+    maxval = np.max(vals)
+    
+    print minval
+    print maxval
+    
+    if "log" == scale:
+        lmin = np.log10(minval)
+        lmax = np.log10(maxval)
+        #grid = np.power( 10.0, np.logspace( lmin, lmax, num=levels, endpoint=True, base=10.0))
+        grid = np.logspace( lmin, lmax, num=levels, endpoint=False, base=10.0)
+    elif "linear" == scale:
+        grid = np.linspace( minval, maxval, num=levels, endpoint=True)
+    else:
+        raise ValueError("Unknown value for scale")
+
+    print grid
+    
 
     out_mask = np.zeros_like( vals )
     img2.get_image().values = out_mask
@@ -112,6 +133,7 @@ def main():
     use_img = infile
     maxval = 100
     num_contours = 0
+    stopit = (np.nan, np.nan)
     while num_contours < maxcntrs and maxval > 0:
         # Trying to do some of this with crates left too many files open
 
@@ -124,6 +146,10 @@ def main():
         lx = int(float(dmcoords.logicalx)+0.5)
         ly = int(float(dmcoords.logicaly)+0.5)
 
+        if stopit == (lx,ly):
+            break
+        else:
+            stopit = (lx,ly)
 
         if "circle" == maxshape:
             ff = "[sky=circle({},{},{})][opt full]".format( xc,yc,maxrad)
@@ -132,11 +158,15 @@ def main():
         else:
             raise ValueError("Unknown shape")
 
-        dmax = maxval*nsigma
-        if dmax < minsize:
-            dmax = minsize
- 
-        low=max(1e-12,maxval-dmax)    
+        low = grid[ grid<maxval][-1]
+
+        print low
+
+        ##dmax = maxval*nsigma
+        ###if dmax < minsize:
+        ###    dmax = minsize
+        ###
+        ###low=max(1e-12,maxval-dmax)    
         num_contours += 1
         print (num_contours,maxval,low)
         dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
@@ -155,8 +185,8 @@ def main():
 
         os.system( "xpaset -p cmap file "+outfile)
         
-        if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
-            dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
+        ###if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
+        ###    dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
 
     # End while
 
