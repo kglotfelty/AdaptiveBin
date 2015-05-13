@@ -104,24 +104,19 @@ def main():
     img2 = read_file(infile)
     vals = img2.get_image().values*1.0
 
-    minval = np.min(vals[vals>0])
+    minval = np.min(vals[vals>0]) # no log of 0 please, we're keeping it real.
     maxval = np.max(vals)
     
-    print minval
-    print maxval
     
     if "log" == scale:
         lmin = np.log10(minval)
         lmax = np.log10(maxval)
-        #grid = np.power( 10.0, np.logspace( lmin, lmax, num=levels, endpoint=True, base=10.0))
         grid = np.logspace( lmin, lmax, num=levels, endpoint=False, base=10.0)
     elif "linear" == scale:
-        grid = np.linspace( minval, maxval, num=levels, endpoint=True)
+        grid = np.linspace( minval, maxval, num=levels, endpoint=False)
     else:
         raise ValueError("Unknown value for scale")
 
-    print grid
-    
 
     out_mask = np.zeros_like( vals )
     img2.get_image().values = out_mask
@@ -147,6 +142,8 @@ def main():
         ly = int(float(dmcoords.logicaly)+0.5)
 
         if stopit == (lx,ly):
+            # Hey,I've been here before.  Didn't work the last time
+            # so just bail out.
             break
         else:
             stopit = (lx,ly)
