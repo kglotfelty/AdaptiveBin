@@ -73,7 +73,7 @@ def purge_too_small(mask, minarea, counts):
         if am[0][0] > minarea:
             break
 
-        print am[0]
+        verb1("Working on mask_id {} with value {}".format(int(am[0][1]),am[0][0]))
         nn = find_neighbors( mask, am[0][1])
         if len(nn) == 0:
             continue

@@ -127,11 +127,13 @@ def crystal_growth( infile, outfile, clobber ):
     imgd = img.get_image()
     vv = imgd.values
 
+    n0 = vv.shape[0]*vv.shape[1]
+    
     # Loop until all pixel are assigned 
     while True:
         # Stop when all pixels have been assigned.
         npts = _crystal_growth(vv)
-        print npts
+        verb1("Pixels remaining to be mapped : {}".format( npts ))
         if 0 == npts:
             break
 

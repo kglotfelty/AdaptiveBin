@@ -93,7 +93,6 @@ def main():
     import ciao_contrib.ancillaryfiles as anc
     
     ff = anc.find_ancillary_files( pars["infile"], ["mask", "bpix"] )    
-    print ff
     fm = ff[0]
     fb = ff[1]
     
@@ -104,7 +103,7 @@ def main():
     from ciao_contrib.runtool import dmstat
     dmstat( pars["mapfile"], centroid=False, verbose=0)
     maxval = int(dmstat.out_max)
-    print maxval
+    verb1("Working to create {} ARFs".format( maxval))
 
     from ciao_contrib.runtool import acis_set_ardlib
     acis_set_ardlib( pars["bpixfile"], verbose=0 )

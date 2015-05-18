@@ -122,8 +122,9 @@ def main():
     img2.get_image().values = out_mask
     write_file( img2, outfile, clobber=True)
 
-    os.system("ds9 -title cmap "+outfile+" &")
-    os.system("sleep 5")
+    if int(pars["verbose"]) >= 2:
+        os.system("ds9 -title cmap "+outfile+" &")
+        os.system("sleep 5")
 
     use_img = infile
     maxval = 100
@@ -157,15 +158,18 @@ def main():
 
         low = grid[ grid<maxval][-1]
 
-        print low
+        num_contours += 1
+
+
+        verb1("Contour lower limit: {}".format(low))
 
         ##dmax = maxval*nsigma
         ###if dmax < minsize:
         ###    dmax = minsize
         ###
         ###low=max(1e-12,maxval-dmax)    
-        num_contours += 1
-        print (num_contours,maxval,low)
+        # print (num_contours,maxval,low)
+
         dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
             low_val=low, value="absolute", clobber=True)
 
@@ -180,10 +184,11 @@ def main():
         shutil.move( t4.name, outfile)
 
 
-        os.system( "xpaset -p cmap file "+outfile)
+        if int(pars["verbose"]) >= 2:
+            os.system( "xpaset -p cmap file "+outfile)
         
-        ###if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
-        ###    dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
+        if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
+            dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
 
     # End while
 
