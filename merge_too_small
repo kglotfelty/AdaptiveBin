@@ -19,7 +19,7 @@
 
 
 toolname = "merge_too_small"
-__revision__ = "15 May 2015"
+__revision__ = "28 May 2015"
 
 import os
 import sys
@@ -61,6 +61,8 @@ def purge_too_small(mask, minarea, counts):
     """
     """
     mask_max = np.max(mask)
+    skiplist = []
+
     while True:
         hh = np.histogram( mask, bins=mask_max, range=(1,mask_max+1), weights=counts)
         area = hh[0]
@@ -68,7 +70,7 @@ def purge_too_small(mask, minarea, counts):
         
         am = zip( area, maskid )
         am.sort()        
-        am = filter( lambda x: x[0]>0, am)
+        am = filter( lambda x: x[0]>0 and x[0] not in skiplist, am)
         
         if am[0][0] > minarea:
             break
@@ -76,11 +78,13 @@ def purge_too_small(mask, minarea, counts):
         verb1("Working on mask_id {} with value {}".format(int(am[0][1]),am[0][0]))
         nn = find_neighbors( mask, am[0][1])
         if len(nn) == 0:
+            skiplist.append( am[0][0] )
             continue
         
         nn = [i-1 for i in nn]
         zz = zip( area[nn],maskid[nn])
         zz.sort()        
+        zz = filter( lambda x: x[0]>0 and x[0] not in skiplist, zz)
         replace_val = int(zz[0][1])
         mask[ np.where( mask == int(am[0][1]) ) ] = replace_val
         

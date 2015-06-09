@@ -87,7 +87,7 @@ def main():
     scale = pars["scale"]
 
     maxcntrs = int(pars["maxcontours"] ) # 1000
-    minsize = float( pars["minsize"] )
+    ###minsize = float( pars["minsize"] )
 
 
     t1 = CIAOTemporaryFile()
