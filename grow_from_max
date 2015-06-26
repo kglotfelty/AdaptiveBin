@@ -41,7 +41,7 @@ def CIAOTemporaryFile( *args, **kwargs ):
     return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
 
 
-def find_local_max( infile, outfile, mask="box(0,0,5,5)"):
+def find_local_max( infile, mask="box(0,0,5,5)"):
     """
     Identify the local peaks in the data.  Value must be the max() valein the
     mask region around the pixel (must be strictly > all surrounding pixels)
@@ -52,8 +52,13 @@ def find_local_max( infile, outfile, mask="box(0,0,5,5)"):
     verb1("Finding local maxima")
 
     t1 = CIAOTemporaryFile()
+    t2 = CIAOTemporaryFile()
+    nn = t2.name
+    t2.close()
+    
     dmimgfilt( infile, t1.name, function="peak", mask=mask, clobber=True)
-    dmimgblob( t1.name, outfile, thresh=0, src=True, clobber=True )
+    dmimgblob( t1.name, nn, thresh=0, src=True, clobber=True )
+    return nn
 
 
 def make_mask( shape, radius ):
@@ -162,9 +167,12 @@ def main():
 
     mask = make_mask( pars["shape"], pars["radius"] )
     
-    t2 = CIAOTemporaryFile()
-    find_local_max( pars["infile"], t2.name, mask=mask )
-    crystal_growth( t2.name, pars["outfile"], pars["clobber"] )
+    if (len(pars["sitefile"]) == 0) or ("none" == pars["sitefile"].lower()):
+        sitefile = find_local_max( pars["infile"], mask=mask )
+    else:
+        sitefile = pars["sitefile"]
+
+    crystal_growth( sitefile, pars["outfile"], pars["clobber"] )
     add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
     
     if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
