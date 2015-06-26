@@ -1,0 +1,6 @@
+infile,f,a,"",,,"Input counts image"
+maskfile,f,a,"",,,"Input mask file"
+outfile,f,a,"",,,"Output sites file"
+verbose,i,h,1,0,5,"Tool chatter level"
+clobber,b,h,no,,,"Remove outfile if it already exists?"
+mode,s,h,"ql",,,
