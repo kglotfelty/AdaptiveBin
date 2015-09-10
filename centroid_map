@@ -19,7 +19,7 @@
 
 
 toolname = "centroid_map"
-__revision__ = "26 June 2015"
+__revision__ = "29 June 2015"
 
 import sys
 import os
@@ -62,7 +62,7 @@ def main():
         dmstat( tmp1, centroid=True, sigma=False, median=False)
         retval = [int(float(x)+0.5) for x in dmstat.out_cntrd_log.split(",")]
         os.unlink( tmp1)
-        verb1("{}\t{}".format(my_id, str(retval)))
+        verb1("id={}\tcentroid={}".format(my_id, str(retval)))
         return (my_id, retval)
 
     # get parameters

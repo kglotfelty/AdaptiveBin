@@ -19,7 +19,7 @@
 
 
 toolname = "contour_bin"
-__revision__ = "01 May 2015"
+__revision__ = "16 July 2015"
 
 
 import numpy as np
@@ -135,6 +135,9 @@ def main():
 
         dmstat( use_img, centroid=False)
         maxval = float( dmstat.out_max )
+        if maxval <= 0:
+            break
+        
         xc = dmstat.out_max_loc.split(",")[0]
         yc = dmstat.out_max_loc.split(",")[1]
 
