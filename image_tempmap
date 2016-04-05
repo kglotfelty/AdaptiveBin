@@ -142,7 +142,7 @@ class ExposureMapStack(ArithmeticModel):
             raise( Exception("I don't know what I'm doing") )
         vals = np.array([ ii.get_image().values[p[0],p[1]]
                   for ii in self._crates ]) * self._livetime
-        if None == xhi:
+        if xhi is None:
             pass
         else:
             dx = xhi - xlo
