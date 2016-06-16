@@ -85,8 +85,11 @@ def purge_too_small(mask, minarea, counts):
         zz = zip( area[nn],maskid[nn])
         zz.sort()        
         zz = filter( lambda x: (x[1] != am[0][1]) and (x[0]>0) and (x[1] not in skiplist), zz)
-        replace_val = int(zz[0][1])
-        mask[ np.where( mask == int(am[0][1]) ) ] = replace_val
+        if len(zz) > 0:
+            replace_val = int(zz[0][1])
+            mask[ np.where( mask == int(am[0][1]) ) ] = replace_val
+        else:
+            skiplist.append(am[0][0])
         
 
 
