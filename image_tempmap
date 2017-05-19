@@ -140,7 +140,7 @@ class ExposureMapStack(ArithmeticModel):
         """        
         if len(self._crates) != len(xlo):
             raise( Exception("I don't know what I'm doing") )
-        vals = np.array([ ii.get_image().values[p[0],p[1]]
+        vals = np.array([ ii.get_image().values[int(p[0]),int(p[1])]
                   for ii in self._crates ]) * self._livetime
         if xhi is None:
             pass
@@ -197,8 +197,8 @@ class ImageTMap():
         """
 
         # Get the same x,y value from all images
-        xx = xy[0]
-        yy = xy[1]
+        xx = int(xy[0])
+        yy = int(xy[1])
         vals = np.array([ ii.get_image().values[yy,xx] for ii in self.crates ])
 
         # we check that at least 3 images have non-zero data 
@@ -286,7 +286,7 @@ class ImageTMap():
         self.savedata = np.zeros( [ ylen, xlen ] )
         
         for xy,val in izip(coords,od):
-            self.savedata[xy[1]][xy[0]] = val
+            self.savedata[int(xy[1])][int(xy[0])] = val
 
         #od = map( self._do_fit, zip(ii, jj) )
         #self.savedata = np.array( od ).reshape( [ylen, xlen ] ) 
