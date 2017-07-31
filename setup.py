@@ -24,6 +24,10 @@ os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1])
 sys.executable = os.path.join( os.environ["ASCDS_INSTALL"], "bin", "python"  )
 
 
+scripts = ["contour_bin"]
+params = [ x+".par" for x in scripts]
+docs = [ x+".xml" for x in scripts if os.path.exists(x+".xml")]
+
 
 from distutils.core import setup
 setup( name='TemperatureMaps',
@@ -32,7 +36,7 @@ setup( name='TemperatureMaps',
         author='Anonymous',
         author_email='WhoDat@cfa.harvard.edu',
         url='https://github.com/kglotfelty/TemperatureMaps/',
-        scripts = ["contour_bin"],
-        data_files = ["contour_bin.par"] 
+        scripts = scripts,
+        data_files = [ ("param", params ), ("share/doc/xml", docs ) ]
         )
 
