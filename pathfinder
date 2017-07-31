@@ -253,19 +253,6 @@ if __name__ == "__main__":
 
 
 
-def test():    
-    #img = PathFinder("acisf02233_broad_thresh_000160_000160_flux.fits")
-    #print(img.find_peak( 2500, 1689 ))
-    #img = PathFinder("smimg.fits")
-    #img = PathFinder("sm_thresh.img")
-    img = PathFinder("6934_s3.fits.asm")
-    img.paint(1.0)
-    img.write("6934.map")
-    
-#test()
-
-
-
 
 
 
