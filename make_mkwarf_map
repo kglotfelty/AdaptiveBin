@@ -17,9 +17,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import print_function
 
 toolname = "make_mkwarf_map"
-__revision__ = "01 May 2015"
+__revision__ = "31 July 2017"
 
 
 
@@ -35,17 +36,19 @@ verb2 = lgr.verbose2
 verb3 = lgr.verbose3
 verb5 = lgr.verbose5
 
+from ciao_contrib.runtool import make_tool
+
 
 def make_warf( regid, pars ):
     
-    from ciao_contrib.runtool import dmimgthresh
-    from ciao_contrib.runtool import dmimgcalc
-    from ciao_contrib.runtool import sky2tdet
-    from ciao_contrib.runtool import mkwarf
-    from ciao_contrib.runtool import dmhedit
-    from ciao_contrib.runtool import dmstat as dmst
-    from tempfile import NamedTemporaryFile
+    dmimgthresh = make_tool("dmimgthresh")
+    dmimgcalc = make_tool("dmimgcalc")
+    sky2tdet = make_tool("sky2tdet")
+    mkwarf = make_tool("mkwarf")
+    dmhedit = make_tool("dmhedit")
+    dmst = make_tool("dmstat")
     
+    from tempfile import NamedTemporaryFile    
     t1 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
     t2 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
     t3 = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"])
@@ -74,8 +77,8 @@ def make_warf( regid, pars ):
           egrid="grid({}[cols energ_lo,energ_hi])".format(rmf),
           msk=msk, clobber=True )
         dmhedit( oroot+".arf", file="", op="add", key="GRIDVAL", value=regid)
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(e)
 
 
 
@@ -112,7 +115,7 @@ def main():
     with new_pfiles_environment( ardlib=True ):
         from ciao_contrib._tools.taskrunner import TaskRunner
         taskrunner = TaskRunner()
-        for ii in xrange( 1, maxval+1):
+        for ii in range( 1, maxval+1):
             taskrunner.add_task( "warf"+str(ii), "", make_warf, ii, pars )
         taskrunner.run_tasks()
 
@@ -124,8 +127,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception, E:
-        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+    except Exception as E:
+        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
   
