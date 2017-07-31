@@ -17,9 +17,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import print_function
+
 
 toolname = "hexgrid"
-__revision__ = "01 May 2015"
+__revision__ = "31 July 2017"
 
 
 import sys
@@ -104,10 +106,10 @@ class HexagonGrid( ):
         pp = ",".join(pp)
         rr = regParse("polygon({})".format(pp))
 
-        for iy in xrange( int(yy-self.sidelen), int(yy+self.sidelen+1)):
+        for iy in range( int(yy-self.sidelen), int(yy+self.sidelen+1)):
             if iy < 0 or iy >= self.ly:
                 continue
-            for ix in xrange( int(xx-self.sidelen), int(xx+self.sidelen+1)):
+            for ix in range( int(xx-self.sidelen), int(xx+self.sidelen+1)):
                 if ix < 0 or ix >= self.lx:
                     continue
             
@@ -188,8 +190,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception, E:
-        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+    except Exception as E:
+        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
 
