@@ -19,9 +19,11 @@
 #
 
 
+from __future__ import print_function
+
 
 toolname = "mkregmap"
-__revision__ = "01 May 2015"
+__revision__ = "31 July 2017"
 
 import sys
 import os
@@ -65,7 +67,7 @@ def parse_region( region_string ):
     # Region not pickle-able, so have to go serial
     import stk as stk
     ss = stk.build(region_string)
-    regions = map( rparse, ss )
+    regions = [rparse(s) for s in ss ]
     return regions
     
 
@@ -86,17 +88,17 @@ class Image():
         ylen = len(img_data)
 
         # Create arrays for X,Y values.
-        ii = map(float, range( 1, xlen+1) * ylen)
-        jj = map(float, np.repeat( range(1,ylen+1), xlen ))
+        ii = [float(x) for x in  list(range( 1, xlen+1)) * ylen ]
+        jj = [float(x) for x in  np.repeat( list(range(1,ylen+1)), xlen) ]
 
         # Get mapping to physical X,Y
-        if coord.lower() not in map( lambda x: x.lower(), img.get_axisnames() ) :
+        if coord.lower() not in [x.lower() for x in img.get_axisnames()] :
             raise ValueError("Coordinate '{}' is not in file".format(coord))
 
         sky = img.get_transform(coord)
 
         # Convert  ii,jj to xx,yy -- faster to do all at once
-        self.xy = sky.apply( np.array(zip(ii,jj)))
+        self.xy = sky.apply( np.array(list(zip(ii,jj))))
         self.infile = infile
         self.xlen = xlen
         self.ylen = ylen
@@ -176,7 +178,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception, E:
-        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+    except Exception as E:
+        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
