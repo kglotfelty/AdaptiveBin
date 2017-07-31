@@ -17,9 +17,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import print_function
+
 
 toolname = "image_tempmap"
-__revision__ = "01 May 2015"
+__revision__ = "31 July 2017"
 
 
 
@@ -95,6 +97,7 @@ class ExposureMapStack(ArithmeticModel):
         """
         return( ArithmeticModel.__str__(self) +
             "\n  File names:  " + str( self._filenames) )
+
     
     def load_expstk(self, value):
         """
@@ -139,7 +142,7 @@ class ExposureMapStack(ArithmeticModel):
         and returns those values.
         """        
         if len(self._crates) != len(xlo):
-            raise( Exception("I don't know what I'm doing") )
+            raise Exception("I don't know what I'm doing") 
         vals = np.array([ ii.get_image().values[int(p[0]),int(p[1])]
                   for ii in self._crates ]) * self._livetime
         if xhi is None:
@@ -232,8 +235,8 @@ class ImageTMap():
 
             retval = eval( self.ret_str ) *1.0
 
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
             retval = np.nan
         
         return retval
@@ -266,26 +269,26 @@ class ImageTMap():
         xlen = len(img_data[0])
         ylen = len(img_data)
 
-        ii = map(float, range(xlen) * ylen)
-        jj = map(float, np.repeat( range(ylen), xlen ))
+        ii = [float(x) for x in  list(range(xlen)) * ylen ]
+        jj = [float(x) for x in  np.repeat( list(range(ylen)), xlen) ]
 
         #
         # Something bad happens when I try to use parallel fit
         # here.  The returned results look garbled.
         from sherpa.utils import parallel_map 
-        from itertools import izip
 
         #coords = np.array(zip(ii,jj))
         ##np.random.shuffle(coords)
 
-        coords = zip(ii,jj)
+        coords = list(zip(ii,jj))
 
         #od = parallel_map( self._do_fit, coords )
-        od = map( self._do_fit, coords )
+        #od = map( self._do_fit, coords )
+        od = [ self._do_fit(c) for c in coords ]
 
         self.savedata = np.zeros( [ ylen, xlen ] )
         
-        for xy,val in izip(coords,od):
+        for xy,val in zip(coords,od):
             self.savedata[int(xy[1])][int(xy[0])] = val
 
         #od = map( self._do_fit, zip(ii, jj) )
@@ -333,42 +336,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception, E:
-        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+    except Exception as E:
+        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
   
-
-
-
-
-
-        
-"""
-
-infile="../../../CIAO46/9399/repro/optical_realistic_model/flximg*thresh.img"
-expfile="../../../CIAO46/9399/repro/optical_realistic_model/flximg*thresh.expmap"
-srcmodel="xswabs.absrb * xsapec.thrm"
-init_str='''
-set_method("neldermead");
-absrb.nH = 0.0494;
-thrm.kT = 0.9;
-thrm.kT.max = 5;
-thrm.redshift = 0.009;
-freeze(absrb.nH)
-'''
-retval = "thrm.kT.val"
-
-tmap = ImageTMap( infile, expfile )
-tmap.set_source( srcmodel, init_str, retval )
-tmap.fit()
-tmap.save("foobar")
-
-"""
-
-
-
-
-
-
-
