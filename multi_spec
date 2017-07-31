@@ -16,10 +16,11 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
+from __future__ import print_function
 
 
 toolname = "multi_spec"
-__revision__ = "01 May 2015"
+__revision__ = "31 July 2017"
 
 import sys
 import os
@@ -128,8 +129,8 @@ class MultiSpectrum():
             exec(self.init_str)
             fit()
             return eval(self.retstr)
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
             return np.nan
 
 
@@ -150,10 +151,11 @@ class MultiSpectrum():
         #
         # Savedata are now in random order, want to sort 
         #
-        od = zip( (maskids+1).tolist(), savedata)
+        od = list(zip( (maskids+1).tolist(), savedata))
         od.sort()
         self.mask_id = [ x[0] for x in od ]
         self.ret_val = [ x[1] for x in od ]
+
 
     def save(self, outroot, infile, clobber, pars):
         #
@@ -266,8 +268,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception, E:
-        print >> sys.stderr, "\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n"
+    except Exception as E:
+        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
   
