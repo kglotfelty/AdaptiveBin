@@ -14,15 +14,6 @@ assert "ASCDS_INSTALL" in os.environ, "Please run this after CIAO has been setup
 ver = sys.version_info
 os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1])
 
-###
-### distutils replaces the shebang /usr/bin/env python with sys.executable.
-### This doesn't work with CIAO where we need to run the wrapper  in 
-### $ASCDS_INSTALL/bin instead of $ASCDS_INSTALL/ots/bin
-###
-### So, we change it before running setup()
-
-sys.executable = os.path.join( os.environ["ASCDS_INSTALL"], "bin", "python"  )
-
 
 scripts = ["contour_bin","dragon_scales","grow_from_max","hexgrid","mkregmap","pathfinder",
             "image_tempmap","make_mkwarf_map","multi_spec",
