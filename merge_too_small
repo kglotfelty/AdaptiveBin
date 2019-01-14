@@ -53,7 +53,7 @@ def find_neighbors( mask, maskval ):
                     continue
 
                 if mask[dy, dx] != maskval:
-                    retvals.append( mask[dy,dx] )
+                    retvals.append( int(mask[dy,dx]) )
 
     retvals = set(retvals)
     return list(retvals)
@@ -62,7 +62,7 @@ def find_neighbors( mask, maskval ):
 def purge_too_small(mask, minarea, counts):    
     """
     """
-    mask_max = np.max(mask)
+    mask_max = int(np.max(mask))
     skiplist = []
 
     while True:
