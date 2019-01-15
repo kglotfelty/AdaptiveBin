@@ -23,7 +23,7 @@ from __future__ import print_function
 
 
 toolname = "mkregmap"
-__revision__ = "31 July 2017"
+__revision__ = "15 January 2019"
 
 import sys
 import os
@@ -76,9 +76,8 @@ class Image():
     
     def __init__( self, infile, coord="sky" ):
         # Read the image file
-        import pycrates as pc
-
-        img = pc.read_file(infile)
+        from crates_contrib.masked_image_crate import MaskedIMAGECrate
+        img = MaskedIMAGECrate(infile)
 
         # Load the pixel values -- really just need the image size
         img_data = img.get_image().values
@@ -97,8 +96,11 @@ class Image():
 
         sky = img.get_transform(coord)
 
+        # Filter out invalid pixels
+        self.ij = [ (i,j) for i,j in zip(ii,jj) if img.valid(int(i-1),int(j-1))]
+
         # Convert  ii,jj to xx,yy -- faster to do all at once
-        self.xy = sky.apply( np.array(list(zip(ii,jj))))
+        self.xy = sky.apply( np.array(self.ij))
         self.infile = infile
         self.xlen = xlen
         self.ylen = ylen
@@ -125,7 +127,13 @@ class Image():
 
         from sherpa.utils import parallel_map 
         outmap = parallel_map( in_region, self.xy )
-        od = np.array( outmap ).reshape( [self.ylen, self.xlen ] ) 
+
+        #od = np.array( outmap ).reshape( [self.ylen, self.xlen ] ) 
+        od = np.zeros( [self.ylen, self.xlen ] )
+        for nn in range(len(outmap)):
+            _i = int(self.ij[nn][0]-1)
+            _j = int(self.ij[nn][1]-1)
+            od[_j,_i] = outmap[nn]
 
         return od
 
