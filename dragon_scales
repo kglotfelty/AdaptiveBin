@@ -63,7 +63,9 @@ class OverlappingShapes():
     def get_psfsize( self, xx, yy):
         """
         """
-        return self.pmap[yy,xx]
+        import numpy as np
+        p = self.pmap[yy,xx]
+        return p if np.isfinite(p) else 0
 
     @staticmethod
     def inside( dx, dy, rad ):
