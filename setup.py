@@ -30,6 +30,7 @@ setup( name='TemperatureMaps',
         author_email='WhoDat@cfa.harvard.edu',
         url='https://github.com/kglotfelty/TemperatureMaps/',
         scripts = scripts,
-        data_files = [ ("param", params ), ("share/doc/xml", docs ) ]
+        data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
+        py_modules=["masked_image_crate"]        
         )
 
