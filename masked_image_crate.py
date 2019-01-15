@@ -78,7 +78,7 @@ class MaskedIMAGECrate( IMAGECrate ):
             xform = self.get_axis(sky).get_transform()
             subspace = self.get_subspace_data(1, sky)
             assert subspace.region is not None, "No region in subpsace"
-        except:
+        except Exception as ee:
             #warnings
             return
 
