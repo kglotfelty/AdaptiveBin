@@ -37,24 +37,24 @@ verb5 = lgr.verbose5
 from cxcdm import *
 
 
-# TODO: add some logic to get image DSS and only work with 
-# pixels inside the region.  Can post-filter with dmimgthresh,
-# but since this is slow, should skip here rather than filter later
 
 class OverlappingShapes():
+
+    invalid_pixel = 12345678
     
     def __init__(self, infile, psffile ):
         """
         """
-        from pycrates import read_file
-        self.img = read_file(infile)
+        from crates_contrib.masked_image_crate import MaskedIMAGECrate
+        self.img = MaskedIMAGECrate(infile,mode="r")
+
         self.vals = self.img.get_image().values
         self.infile = infile
 
         try:
             self.pmap = np.zeros_like( self.vals ) + float( psffile )
         except Exception as e:
-            self.pmap = read_file( psffile).get_image().values
+            self.pmap = MaskedIMAGECrate( psffile, mode="r").get_image().values
 
         self.nullval = -999
         self.mask = None
@@ -84,6 +84,11 @@ class OverlappingShapes():
                     continue
                 if self.mask[_y,_x] != 0:
                     continue            
+                if not self.img.valid(_x,_y):
+                    self.mask[_y, _x] = self.invalid_pixel
+                    self.vals[_y, _x] = self.nullval
+                    continue
+
                 dx = xx-_x
                 if self.inside( dx, dy, rad):
                     self.mask[_y, _x] = maskval
@@ -104,7 +109,7 @@ class OverlappingShapes():
     def doit(self):
         """
         """
-        self.mask = np.zeros_like(self.vals)
+        self.mask = np.zeros_like(self.vals).astype(np.int32)
 
         maskval = 0
         while 0 == np.min(self.mask):
@@ -112,6 +117,12 @@ class OverlappingShapes():
             verb3(str(maskval))
             ly,lx = self.get_loc_max()
             self.set_mask( lx, ly, maskval )
+
+
+        for iy in range(self.mask.shape[0]):
+            for ix in range(self.mask.shape[1]):
+                if self.mask[iy][ix] == self.invalid_pixel:
+                    self.mask[iy][ix] = 0
 
             
     def save( self, outfile ):
