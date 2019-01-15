@@ -20,7 +20,7 @@
 from __future__ import print_function
 
 toolname = "grow_from_max"
-__revision__ = "31 July 2017"
+__revision__ = "15 January 2019"
 
 
 import os
@@ -77,7 +77,7 @@ def make_mask( shape, radius ):
         raise RuntimeError("Unknown shape '{}'".format(shape))
 
 
-def _crystal_growth( vv ):
+def _crystal_growth( vv,img ):
     """
     Main loop, removed from below for readability
     """
@@ -93,6 +93,9 @@ def _crystal_growth( vv ):
         for xx in range(xlen):            
             # If pixel has already been assigned, then skip it
             if cc[yy,xx] != 0:
+                continue
+
+            if not img.valid(xx,yy):
                 continue
 
             # Keep track of how many pixels updated. Stop when npts=0
@@ -120,33 +123,36 @@ def _crystal_growth( vv ):
     return npts
     
 
-def crystal_growth( infile, outfile, clobber ):
+def crystal_growth( infile, sitesfile, outfile, clobber ):
     """
     Given a set of local max, grow the regions until they touch and
     cover the image
     """
-    from pycrates import read_file, write_file
+    from crates_contrib.masked_image_crate import MaskedIMAGECrate
 
     verb1("Assigning pixels to maxima")
 
     # Load data
-    img = read_file(infile+"[1][localmax]")
+    img = MaskedIMAGECrate(sitesfile,mode="r")
     imgd = img.get_image()
     vv = imgd.values
-
     n0 = vv.shape[0]*vv.shape[1]
+
+    # Open infile to get subspace
+    dss_img = MaskedIMAGECrate(infile,mode="r")
     
     # Loop until all pixel are assigned 
     while True:
         # Stop when all pixels have been assigned.
-        npts = _crystal_growth(vv)
+        npts = _crystal_growth(vv,dss_img)
         verb1("Pixels remaining to be mapped : {}".format( npts ))
         if 0 == npts:
             break
 
     # Save the values 
-    imgd.values = vv
-    write_file( img, outfile, clobber=clobber)
+    imgd.values = vv    
+    img.name = "localmax"
+    img.write( outfile, clobber=clobber )
 
 
 @lw.handle_ciao_errors( toolname, __revision__)
@@ -174,7 +180,7 @@ def main():
     else:
         sitefile = pars["sitefile"]
 
-    crystal_growth( sitefile, pars["outfile"], pars["clobber"] )
+    crystal_growth( pars["infile"], sitefile, pars["outfile"], pars["clobber"] )
     add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
     
     if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
