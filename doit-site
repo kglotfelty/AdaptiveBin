@@ -1,0 +1,15 @@
+
+set infile = img.psf_asm
+grow_from_max $infile map0 site= clob+ verb=1
+
+set m = 48
+set n = 49
+while ( $n < 150 )
+  echo $m $n
+  centroid_map $infile map$m site$n clob+ verb=1
+  grow_from_max $infile map$n site=site$n clob+ verb=1
+
+  @ m += 1
+  @ n += 1
+
+end
