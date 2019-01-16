@@ -1,9 +1,0 @@
-infile,f,a,"",,,"Input stack of counts images"
-expfile,f,a,"",,,"Input stack of exposure maps"
-outfile,f,a,"",,,"Output temperature map"
-srcmodel,s,a,"xswabs.absrb*xsapec.thrm",,,"Source model to fit"
-initialization,s,a,"set_method('neldermead');absrb.nH = 0.0494;thrm.kT = 0.9;thrm.kT.max = 5;thrm.redshift = 0.009;freeze(absrb.nH)",,,"Commands to perform before doing each fit"
-return_value,s,a,"thrm.kT.val",,,"Final temperature value to return"
-verbose,i,h,0,0,5,"Tool chatter level"
-clobber,b,h,no,,,"Remove outfile it if already exists?"
-mode,s,a,"ql",,,

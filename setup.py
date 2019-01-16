@@ -16,19 +16,18 @@ os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1])
 
 
 scripts = ["contour_map","dragon_scales","grow_from_max","hexgrid","mkregmap","pathfinder",
-            "image_tempmap","make_mkwarf_map","multi_spec",
             "centroid_map", "merge_too_small"]
 params = [ x+".par" for x in scripts]
 docs = [ x+".xml" for x in scripts if os.path.exists(x+".xml")]
 
 
 from distutils.core import setup
-setup( name='TemperatureMaps',
+setup( name='AdaptiveBin',
         version='0.0.1',
-        description='Temperature maps scripts',
+        description='Adaptive binning scripts',
         author='Anonymous',
         author_email='WhoDat@cfa.harvard.edu',
-        url='https://github.com/kglotfelty/TemperatureMaps/',
+        url='https://github.com/kglotfelty/AdaptiveBin/',
         scripts = scripts,
         data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
         py_modules=["masked_image_crate"]        
