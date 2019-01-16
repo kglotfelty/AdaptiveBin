@@ -15,7 +15,7 @@ ver = sys.version_info
 os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1])
 
 
-scripts = ["contour_bin","dragon_scales","grow_from_max","hexgrid","mkregmap","pathfinder",
+scripts = ["contour_map","dragon_scales","grow_from_max","hexgrid","mkregmap","pathfinder",
             "image_tempmap","make_mkwarf_map","multi_spec",
             "centroid_map", "merge_too_small"]
 params = [ x+".par" for x in scripts]

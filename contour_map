@@ -19,8 +19,8 @@
 
 from __future__ import print_function
 
-toolname = "contour_bin"
-__revision__ = "31 July 2017"
+toolname = "contour_map"
+__revision__ = "16 January 2019"
 
 
 import numpy as np
