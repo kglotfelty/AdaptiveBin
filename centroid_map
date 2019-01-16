@@ -26,9 +26,9 @@ import sys
 import os
 
 from ciao_contrib.runtool import make_tool
-from pycrates import read_file
 from sherpa.utils import parallel_map 
 import numpy as np
+from crates_contrib.masked_image_crate import MaskedIMAGECrate
 
 
 import ciao_contrib.logger_wrapper as lw
@@ -58,10 +58,17 @@ def main():
         dmstat = make_tool("dmstat")
         
         tmp1 = "tmp.thresh.{0}".format(my_id)
-        
+
+        dmstat.punlearn()
         dmimgthresh( infile, outfile=tmp1, expfile=mapfile, cut="{0}:{0}".format(my_id), value=0, clobber=True)
         dmstat( tmp1, centroid=True, sigma=False, median=False)
-        retval = [int(float(x)+0.5) for x in dmstat.out_cntrd_log.split(",")]
+        try:
+            retval = [int(float(x)+0.5) for x in dmstat.out_cntrd_log.split(",")]
+        except:
+            print("Crashed with id={}".format(my_id))
+            print(dmstat)
+            raise
+
         os.unlink( tmp1)
         verb1("id={}\tcentroid={}".format(my_id, str(retval)))
         return (my_id, retval)
@@ -81,9 +88,9 @@ def main():
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], outfile )
 
-    map_cr = read_file(mapfile) 
+    map_cr = MaskedIMAGECrate(mapfile) 
     img = map_cr.get_image().values
-    ids = list(set(list(img.flatten())))
+    ids = [x for x in set(list(img.flatten())) if x > 0] # mapid=0 are ungrouped
 
     new_centroids = parallel_map( get_centroid, ids )
 
