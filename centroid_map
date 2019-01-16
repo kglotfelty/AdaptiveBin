@@ -62,6 +62,7 @@ def main():
         dmstat.punlearn()
         dmimgthresh( infile, outfile=tmp1, expfile=mapfile, cut="{0}:{0}".format(my_id), value=0, clobber=True)
         dmstat( tmp1, centroid=True, sigma=False, median=False)
+        os.unlink( tmp1)
         try:
             retval = [int(float(x)+0.5) for x in dmstat.out_cntrd_log.split(",")]
         except:
@@ -69,7 +70,6 @@ def main():
             print(dmstat)
             raise
 
-        os.unlink( tmp1)
         verb1("id={}\tcentroid={}".format(my_id, str(retval)))
         return (my_id, retval)
 
