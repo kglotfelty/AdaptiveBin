@@ -19,4 +19,18 @@ This repro was forked from my
 Users may also be interested in the compiled tools
 
 - [`dmnautilus`](https://github.com/kglotfelty/dmnautilus-) (upgraded from CIAO version)
-- [`dmradar`](https://github.com/kglotfelty/dmradar) 
+- [`dmradar`](https://github.com/kglotfelty/dmradar) polar version of `dmnautilus`
+
+## Installation
+
+Users must have CIAO installed and have already sourced the setup script.  
+Then
+
+```bash
+git clone https://github.com/kglotfelty/AdaptiveBin
+cd AdaptiveBin
+python setup.py install 
+```
+
+If you do not have write access to their CIAO installtion, then 
+you need to modify the `setup.cfg`.
