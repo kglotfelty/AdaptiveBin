@@ -49,13 +49,17 @@ def get_region( n_at ):
     
     """
     thrsh = img.thresh( n_at, n_at )
-    pos = thrsh.stats()["max_loc"]
+    stt = thrsh.stats()
+    if stt["sum"] == 0:
+        return None
+    pos = stt["max_loc"]
     logc = thrsh.physical( *pos )
     reg = thrsh.lasso( logc["logicalx"], logc["logicaly"], 
       low_value=0.1, high_value=n_at+0.5, value="absolute", coord="logical" )
     return str(reg)
 
 
+@lw.handle_ciao_errors( toolname, __revision__)
 def main():
     """
     
@@ -80,8 +84,14 @@ def main():
     outreg = parallel_map( get_region, range(1,nmax+1) )
 
     from region import CXCRegion
-    allout = CXCRegion(outreg[0])  # TODO: outreg[0] is None?
-    for r in outreg[1:]:
+    i=0
+    while True:
+        if outreg[i] is not None:
+            break
+        i=i+1
+            
+    allout = CXCRegion(outreg[i])
+    for r in outreg[i+1:]:
         if r is not None:
             allout = allout+CXCRegion(r)
 
