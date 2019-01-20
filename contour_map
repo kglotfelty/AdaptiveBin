@@ -124,7 +124,6 @@ def main():
     maxcntrs = int(pars["maxcontours"] ) # 1000
 
 
-
     # Load input image
     img2 = read_file(infile)
     vals = img2.get_image().values*1.0
@@ -137,10 +136,9 @@ def main():
     img2.get_image().values = out_mask
     write_file( img2, outfile, clobber=True)
 
-
     t1,t2,t3,t4 = make_temp_files()
     use_img = infile
-    maxval = 100
+    maxval = max(grid)
     num_contours = 0
     stopit = (np.nan, np.nan)
     while num_contours < maxcntrs and maxval > min(grid):
