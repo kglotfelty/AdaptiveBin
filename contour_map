@@ -61,6 +61,41 @@ class CIAOTemporaryFile():
     def __del__(self):
         if os.path.exists( self.name ):
             os.remove( self.name )
+
+
+def make_temp_files():
+    t1 = CIAOTemporaryFile()
+    t2 = CIAOTemporaryFile()
+    t3 = CIAOTemporaryFile()
+    t4 = CIAOTemporaryFile()
+
+    t1.tmpfile.close()
+    t2.tmpfile.close()
+    t3.tmpfile.close()
+    t4.tmpfile.close()
+    
+    return(t1,t2,t3,t4)
+
+
+def make_grid(img, levels, nlevels, scale ):
+    if "" == levels or "INDEF" == levels:
+        minval = np.min(vals[vals>0]) # no log of 0 please, we're keeping it real.
+        maxval = np.max(vals)
+        if "log" == scale:
+            lmin = np.log10(minval)
+            lmax = np.log10(maxval)
+            grid = np.logspace( lmin, lmax, num=nlevels, endpoint=False, base=10.0)
+        elif "linear" == scale:
+            grid = np.linspace( minval, maxval, num=nlevels, endpoint=False)
+        else:
+            raise ValueError("Unknown value for scale")
+    else:  # use specific levels
+        import stk as stk
+        grid = stk.build( levels )
+        grid = np.array([float(x) for x in grid])
+    
+
+    return grid
         
         
 
@@ -83,65 +118,44 @@ def main():
     outfile = pars["outfile"] # "contour.map"
     maxrad = float( pars["distance"] ) # 75
     maxshape = pars["shape"]  # "circle"
-    ###nsigma = float( pars["fraction"] ) # 0.2
-    levels = int( pars["levels"] )
+    levels = pars["levels"]
+    nlevels = int( pars["nlevels"] )
     scale = pars["scale"]
-
     maxcntrs = int(pars["maxcontours"] ) # 1000
-    ###minsize = float( pars["minsize"] )
 
 
-    t1 = CIAOTemporaryFile()
-    t2 = CIAOTemporaryFile()
-    t3 = CIAOTemporaryFile()
-    t4 = CIAOTemporaryFile()
 
-    t1.tmpfile.close()
-    t2.tmpfile.close()
-    t3.tmpfile.close()
-    t4.tmpfile.close()
-    
-
+    # Load input image
     img2 = read_file(infile)
     vals = img2.get_image().values*1.0
 
-    minval = np.min(vals[vals>0]) # no log of 0 please, we're keeping it real.
-    maxval = np.max(vals)
-    
-    
-    if "log" == scale:
-        lmin = np.log10(minval)
-        lmax = np.log10(maxval)
-        grid = np.logspace( lmin, lmax, num=levels, endpoint=False, base=10.0)
-    elif "linear" == scale:
-        grid = np.linspace( minval, maxval, num=levels, endpoint=False)
-    else:
-        raise ValueError("Unknown value for scale")
+    # Make list of contour levels
+    grid = make_grid( vals, levels, nlevels, scale )
 
-
+    # Create output file        
     out_mask = np.zeros_like( vals )
     img2.get_image().values = out_mask
     write_file( img2, outfile, clobber=True)
 
-    if int(pars["verbose"]) >= 2:
-        os.system("ds9 -title cmap "+outfile+" &")
-        os.system("sleep 5")
 
+    t1,t2,t3,t4 = make_temp_files()
     use_img = infile
     maxval = 100
     num_contours = 0
     stopit = (np.nan, np.nan)
-    while num_contours < maxcntrs and maxval > 0:
+    while num_contours < maxcntrs and maxval > min(grid):
         # Trying to do some of this with crates left too many files open
 
-        dmstat( use_img, centroid=False)
+        dmstat( use_img, centroid=False, sigma=False, median=False)
         maxval = float( dmstat.out_max )
-        if maxval <= 0:
+        if maxval <= min(grid):
             break
         
+        # location of pixel == maxval
         xc = dmstat.out_max_loc.split(",")[0]
         yc = dmstat.out_max_loc.split(",")[1]
-
+    
+        # convert to logical coords
         dmcoords( infile, asol="", op="sky", x=xc, y=yc )
         lx = int(float(dmcoords.logicalx)+0.5)
         ly = int(float(dmcoords.logicaly)+0.5)
@@ -160,19 +174,15 @@ def main():
         else:
             raise ValueError("Unknown shape")
 
-        low = grid[ grid<maxval][-1]
+        low = grid[grid<maxval]
+        if len(low) == 0:
+            # pixels in image below lowest contour level, can't reach 'em
+            break
+        low = low[-1]
 
         num_contours += 1
 
-
         verb1("Contour lower limit: {}".format(low))
-
-        ##dmax = maxval*nsigma
-        ###if dmax < minsize:
-        ###    dmax = minsize
-        ###
-        ###low=max(1e-12,maxval-dmax)    
-        # print (num_contours,maxval,low)
 
         dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
             low_val=low, value="absolute", clobber=True)
@@ -187,17 +197,12 @@ def main():
             op="imgout=(img1+(img2*{}))".format( num_contours), clobber=True)
         shutil.move( t4.name, outfile)
 
-
-        if int(pars["verbose"]) >= 2:
-            os.system( "xpaset -p cmap file "+outfile)
         
-        if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
-            dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
-
     # End while
 
     add_tool_history( outfile, toolname, pars, toolversion=__revision__)
     if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
+        dmmaskbin( pars["infile"], outfile+"[opt type=i4]", pars["binimg"], clobber=True)
         add_tool_history( pars["binimg"], toolname, pars, toolversion=__revision__)
 
 
