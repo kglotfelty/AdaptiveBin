@@ -48,6 +48,8 @@ def get_region( n_at ):
     Lasso to create region  -- this only works for contigious regions
     
     """
+
+    verb1(n_at)
     thrsh = img.thresh( n_at, n_at )
     stt = thrsh.stats()
     if stt["sum"] == 0:
@@ -80,16 +82,23 @@ def main():
     img = CIAOImage(pars["infile"])
     nmax = int(img.stats()["max"])
 
-    from sherpa.utils import parallel_map
-    outreg = parallel_map( get_region, range(1,nmax+1) )
+    import numpy as np
+    uu = np.unique( img.get_image().values)
+    uu = uu[uu>0]
 
-    from region import CXCRegion
+    from sherpa.utils import parallel_map
+    outreg = parallel_map( get_region, uu )
+    
+    #outreg = [get_region(i) for i in uu]
+
+
     i=0
     while True:
         if outreg[i] is not None:
             break
         i=i+1
             
+    from region import CXCRegion
     allout = CXCRegion(outreg[i])
     for r in outreg[i+1:]:
         if r is not None:
