@@ -20,15 +20,12 @@
 from __future__ import print_function
 
 toolname = "centroid_map"
-__revision__ = "31 July 2017"
+__revision__ = "18 January 2019"
 
 import sys
 import os
 
-from ciao_contrib.runtool import make_tool
-from sherpa.utils import parallel_map 
 import numpy as np
-from crates_contrib.masked_image_crate import MaskedIMAGECrate
 
 
 import ciao_contrib.logger_wrapper as lw
@@ -40,39 +37,10 @@ verb3 = lgr.verbose3
 verb5 = lgr.verbose5
 
 
-def CIAOTemporaryFile( *args, **kwargs ):    
-    """
-    Force to use ASCDS_WORK_PATH
-    """
-    from tempfile import NamedTemporaryFile    
-    return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
-
-
 
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
         
-
-    def get_centroid( my_id ):    
-        dmimgthresh = make_tool("dmimgthresh")
-        dmstat = make_tool("dmstat")
-        
-        tmp1 = "tmp.thresh.{0}".format(my_id)
-
-        dmstat.punlearn()
-        dmimgthresh( infile, outfile=tmp1, expfile=mapfile, cut="{0}:{0}".format(my_id), value=0, clobber=True)
-        dmstat( tmp1, centroid=True, sigma=False, median=False)
-        os.unlink( tmp1)
-        try:
-            retval = [int(float(x)+0.5) for x in dmstat.out_cntrd_log.split(",")]
-        except:
-            print("Crashed with id={}".format(my_id))
-            print(dmstat)
-            raise
-
-        verb1("id={}\tcentroid={}".format(my_id, str(retval)))
-        return (my_id, retval)
-
     # get parameters
     from ciao_contrib.param_soaker import get_params
 
@@ -88,23 +56,53 @@ def main():
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], outfile )
 
-    map_cr = MaskedIMAGECrate(mapfile) 
-    img = map_cr.get_image().values
-    ids = [x for x in set(list(img.flatten())) if x > 0] # mapid=0 are ungrouped
+    from pycrates import read_file
+    imgvals = read_file(infile).get_image().values
 
-    new_centroids = parallel_map( get_centroid, ids )
+    mapvals = read_file(mapfile).get_image().values
 
-    output = np.zeros_like( img )
-    for oo in new_centroids:
-        val = oo[0]
-        pos_x = oo[1][0]-1
-        pos_y = oo[1][1]-1
-        output[pos_y][pos_x] = val
+    assert mapvals.shape == imgvals.shape, "Image sizes must match"
 
+    xlen = mapvals.shape[1]
+    ylen = mapvals.shape[0]
+
+    # Make matrix w/ constant Y values
+    xx = list(np.arange(xlen))*ylen
+    xx = np.array(xx)
+    xx = xx.reshape(mapvals.shape)
+
+    # Make matrix w/ constant X values
+    yy = list(np.arange(ylen))*xlen
+    yy = np.array(yy)
+    yy = yy.reshape(mapvals.shape[::-1]).T
+
+    # Weight imagevals by X and Y
+    wx = xx * imgvals
+    wy = yy * imgvals
+
+    # Operate over map values
+    
+    unq = np.unique(mapvals)
+    outvals = np.zeros_like(mapvals)
+    for uu in unq:
+        if 0 == uu:
+            continue
+        idx = np.where(mapvals==uu)
+        w = np.sum(imgvals[idx])
+        if 0 == w:
+            # If sum is 0, use unweighted value
+            cx = np.average(xx[idx])
+            cy = np.average(yy[idx])
+        else:
+            cx = np.sum(wx[idx])/w
+            cy = np.sum(wy[idx])/w
+        outvals[int(cy)][int(cx)] = uu
+        
+    from crates_contrib.utils import make_image_crate
+    outmap = make_image_crate(outvals)
+    outmap.write(outfile, clobber=True)
 
     from ciao_contrib.runtool import add_tool_history
-    map_cr.get_image().values = output
-    map_cr.write( outfile, clobber=True )
     add_tool_history( outfile, toolname, pars, toolversion=__revision__)
 
 

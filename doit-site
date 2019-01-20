@@ -1,15 +1,31 @@
 
 set infile = img.psf_asm
-grow_from_max $infile map0 site= clob+ verb=1
+###grow_from_max $infile map0 site= clob+ verb=0
 
-set m = 48
-set n = 49
+dmimgfilt $infile site0 peak "box(0,0,5,5)"  clob+
+dmimgtess site0 tess0 min=1 edge=0 clob+
+dmstat "tess0[cols component]" verb=0
+set nreg = `pget dmstat out_max`
+mkregmap $infile regions="region(tess0[component=igrid(1:${nreg}:1)])" out=map0 clob+
+
+
+
+
+
+set m = 0
+set n = 1
 while ( $n < 150 )
-  echo $m $n
-  centroid_map $infile map$m site$n clob+ verb=1
-  grow_from_max $infile map$n site=site$n clob+ verb=1
+    echo $m $n `date`
+    centroid_map $infile map$m site$n clob+ verb=0
+    ###  grow_from_max $infile map$n site=site$n clob+ verb=0
 
-  @ m += 1
-  @ n += 1
+    dmimgcalc $infile site$n - add weight=0 lookup= | \
+    dmimgtess - tess$n min=1 edge=0 clob+
+    dmstat "tess${n}[cols component]" verb=0
+    set nreg = `pget dmstat out_max`
+    mkregmap $infile regions="region(tess${n}[component=igrid(1:${nreg}:1)])" out=map${n} clob+ verb=0
+
+    @ m += 1
+    @ n += 1
 
 end
