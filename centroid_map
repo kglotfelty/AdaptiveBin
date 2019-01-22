@@ -80,6 +80,7 @@ class InputImage():
 
     def write_new_sites( self, outvals, outfile ):
         
+        self.input_image.name = "centroid_map"
         self.input_image.get_image().values = outvals
         self.input_image.write(outfile, clobber="yes")
 
@@ -167,7 +168,7 @@ def main():
 
 
     from ciao_contrib.runtool import dmcopy
-    dmcopy( mapfile.name, outfile, clobber=True)
+    dmcopy( mapfile.name+"[1][centroid_map]", outfile, clobber=True)
 
     from ciao_contrib.runtool import add_tool_history
     add_tool_history( outfile, toolname, pars, toolversion=__revision__)
