@@ -1,6 +1,7 @@
 infile,f,a,"",,,"Input counts image"
-maskfile,f,a,"",,,"Input mask file"
-outfile,f,a,"",,,"Output sites file"
+outfile,f,a,"",,,"Output map file"
+numiter,i,h,1,1,,"Number of centroid iterations"
+sitefile,f,h,"",,,"Input initial site locations"
 verbose,i,h,1,0,5,"Tool chatter level"
-clobber,b,h,no,,,"Remove outfile if it already exists?"
+clobber,b,h,yes,,,"Remove outfile if it already exists?"
 mode,s,h,"ql",,,

@@ -36,7 +36,99 @@ verb2 = lgr.verbose2
 verb3 = lgr.verbose3
 verb5 = lgr.verbose5
 
+from pycrates import read_file
 
+
+class CIAOTemporaryFile():
+    """
+    A little class to make sure that tmpfiles are forcefully removed at end.
+    """
+
+    def __init__( self, *args, **kwargs ):
+        from tempfile import NamedTemporaryFile    
+        self.tmpfile = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"], delete=False, *args, **kwargs)
+        self.name = self.tmpfile.name
+
+    def __del__(self):
+        self.tmpfile.close()
+        if os.path.exists( self.name ):
+            os.remove( self.name )
+
+
+class InputImage():
+    
+    def __init__(self, infile ):
+        self.input_image = read_file(infile)
+        self.imgvals = self.input_image.get_image().values
+
+        self.xlen = self.imgvals.shape[1]
+        self.ylen = self.imgvals.shape[0]
+
+        # Make matrix w/ constant Y values
+        xx = list(np.arange(self.xlen))*self.ylen
+        xx = np.array(xx)
+        self.xx = xx.reshape(self.imgvals.shape)
+
+        # Make matrix w/ constant X values
+        yy = list(np.arange(self.ylen))*self.xlen
+        yy = np.array(yy)
+        self.yy = yy.reshape(self.imgvals.shape[::-1]).T
+
+        # Weight imagevals by X and Y
+        self.wx = self.xx * self.imgvals
+        self.wy = self.yy * self.imgvals
+
+    def write_new_sites( self, outvals, outfile ):
+        
+        self.input_image.get_image().values = outvals
+        self.input_image.write(outfile, clobber="yes")
+
+
+def centroid_map( mapfile, img, outfile ):
+    mapvals = read_file(mapfile).get_image().values
+    outvals = np.zeros_like(mapvals)
+    assert mapvals.shape == img.imgvals.shape, "Image sizes must match"
+
+    # Operate over map values    
+    unq = np.unique(mapvals)
+
+    for uu in unq:
+        if 0 == uu:
+            continue
+        idx = np.where(mapvals==uu)
+        w = np.sum(img.imgvals[idx])
+        if 0 == w:
+            # If sum is 0, use unweighted value
+            cx = np.average(img.xx[idx])
+            cy = np.average(img.yy[idx])
+        else:
+            cx = np.sum(img.wx[idx])/w
+            cy = np.sum(img.wy[idx])/w
+        outvals[int(cy)][int(cx)] = uu
+        
+    img.write_new_sites( outvals, outfile )
+    
+
+def make_tool_grow_from_max():
+    import ciao_contrib.runtool as rt
+    newtool = {
+        'istool' : True,
+        'req' : [
+                rt.ParValue("infile", "f", "input image", None),
+                rt.ParValue("outfile", "f", "output filename", None),
+                ],
+        'opt' : [                
+                rt.ParValue("binimg","f", "output bin image name", None),
+                rt.ParValue("shape","s", "shape for local max", "box"),
+                rt.ParValue("radius","r", "radius of local max", 2.5),
+                rt.ParValue("sitefile","f", "Input site file", None),
+                rt.ParValue("clobber","b","Overwrite if file exists",False),
+                rt.ParRange("verbose","i","Debug level",0,0,5)
+                ]}
+    gfm = rt.CIAOToolParFile( "grow_from_max", newtool["req"], newtool["opt"])
+    return(gfm)
+
+    
 
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
@@ -49,61 +141,33 @@ def main():
         verbose={"set":lw.set_verbosity, "cmd":verb1} )
 
 
-    infile = pars["infile"]  # "img.psf_asm" 
-    mapfile = pars["maskfile"] # "watershed.map"
-    outfile = pars["outfile"] # "newcentroid.sites"
+    infile = pars["infile"]  
+    outfile = pars["outfile"]
+    sitefile = pars["sitefile"]
+    if 0 == len(sitefile) or "none" == sitefile.lower():
+        sitefile=None
+    numiter = int(pars["numiter"])
 
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], outfile )
 
-    from pycrates import read_file
-    input_image = read_file(infile)
-    imgvals = input_image.get_image().values
+    img = InputImage(infile)
 
-    mapvals = read_file(mapfile).get_image().values
+    gfm = make_tool_grow_from_max()
 
-    assert mapvals.shape == imgvals.shape, "Image sizes must match"
+    mapfile = CIAOTemporaryFile()
+    gfm( infile=infile, outfile=mapfile.name, site=sitefile, clobber=True)
 
-    xlen = mapvals.shape[1]
-    ylen = mapvals.shape[0]
-
-    # Make matrix w/ constant Y values
-    xx = list(np.arange(xlen))*ylen
-    xx = np.array(xx)
-    xx = xx.reshape(mapvals.shape)
-
-    # Make matrix w/ constant X values
-    yy = list(np.arange(ylen))*xlen
-    yy = np.array(yy)
-    yy = yy.reshape(mapvals.shape[::-1]).T
-
-    # Weight imagevals by X and Y
-    wx = xx * imgvals
-    wy = yy * imgvals
-
-    # Operate over map values
-    
-    unq = np.unique(mapvals)
-    outvals = np.zeros_like(mapvals)
-    for uu in unq:
-        if 0 == uu:
-            continue
-        idx = np.where(mapvals==uu)
-        w = np.sum(imgvals[idx])
-        if 0 == w:
-            # If sum is 0, use unweighted value
-            cx = np.average(xx[idx])
-            cy = np.average(yy[idx])
-        else:
-            cx = np.sum(wx[idx])/w
-            cy = np.sum(wy[idx])/w
-        outvals[int(cy)][int(cx)] = uu
+    for niter in range(numiter):
+        sitefile = CIAOTemporaryFile()
+        centroid_map( mapfile.name, img, sitefile.name )
         
-    ###from crates_contrib.utils import make_image_crate
-    ###outmap = make_image_crate(outvals)
-    
-    input_image.get_image().values = outvals
-    input_image.write(outfile, clobber=True)
+        mapfile = CIAOTemporaryFile()
+        gfm( infile=infile, outfile=mapfile.name, site=sitefile.name, clobber=True)
+
+
+    from ciao_contrib.runtool import dmcopy
+    dmcopy( mapfile.name, outfile, clobber=True)
 
     from ciao_contrib.runtool import add_tool_history
     add_tool_history( outfile, toolname, pars, toolversion=__revision__)
