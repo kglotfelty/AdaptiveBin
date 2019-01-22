@@ -7,11 +7,11 @@ This repo contains several adaptive binning routines for use in
 
 - `contour_map` : follows local contours
 - `dragon_scales` : overlapping shapes
-- `grow_from_max` : watershed tesselations
+- `grow_from_max` : Voronoi tesselation map
 - `hexgrid` : regular hexagonal grid
 - `mkregmap` : stack of regions to a map
 - `pathfinder` : steepest ascent
-
+- `centroid_map` : iterative centroid map
 
 This repro was forked from my
 [Temperature Map](https://github.com/kglotfelty/TemperatureMap) repro.
