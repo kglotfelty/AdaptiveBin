@@ -35,12 +35,20 @@ verb3 = lgr.verbose3
 verb5 = lgr.verbose5
 
 
-def CIAOTemporaryFile( *args, **kwargs ):    
+class CIAOTemporaryFile():
     """
-    Force to use ASCDS_WORK_PATH
+    A little class to make sure that tmpfiles are forcefully removed at end.
     """
-    from tempfile import NamedTemporaryFile    
-    return NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"], *args, **kwargs)
+
+    def __init__( self, *args, **kwargs ):
+        from tempfile import NamedTemporaryFile    
+        self.tmpfile = NamedTemporaryFile( dir=os.environ["ASCDS_WORK_PATH"], delete=False, *args, **kwargs)
+        self.name = self.tmpfile.name
+
+    def __del__(self):
+        self.tmpfile.close()
+        if os.path.exists( self.name ):
+            os.remove( self.name )
 
 
 def find_local_max( infile, mask="box(0,0,5,5)"):
@@ -56,11 +64,10 @@ def find_local_max( infile, mask="box(0,0,5,5)"):
     t1 = CIAOTemporaryFile()
     t2 = CIAOTemporaryFile()
     nn = t2.name
-    t2.close()
     
     dmimgfilt( infile, t1.name, function="peak", mask=mask, clobber=True)
     dmimgblob( t1.name, nn, thresh=0, src=True, clobber=True )
-    return nn
+    return t2
 
 
 def make_mask( shape, radius ):
@@ -176,7 +183,8 @@ def main():
     mask = make_mask( pars["shape"], pars["radius"] )
     
     if (len(pars["sitefile"]) == 0) or ("none" == pars["sitefile"].lower()):
-        sitefile = find_local_max( pars["infile"], mask=mask )
+        tmpsitefile = find_local_max( pars["infile"], mask=mask )
+        sitefile = tmpsitefile.name
     else:
         sitefile = pars["sitefile"]
 
