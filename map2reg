@@ -104,7 +104,7 @@ def main():
         if r is not None:
             allout = allout+CXCRegion(r)
 
-    allout.write( pars["outfile"], fits=True )
+    allout.write( pars["outfile"], fits=True, clobber=True )
 
 
    
