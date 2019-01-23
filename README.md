@@ -13,13 +13,15 @@ This repo contains several adaptive binning routines for use in
 - `pathfinder` : steepest ascent
 - `centroid_map` : iterative centroid map
 
-This repro was forked from my
-[Temperature Map](https://github.com/kglotfelty/TemperatureMap) repro.
+
 
 Users may also be interested in the compiled tools
 
 - [`dmnautilus`](https://github.com/kglotfelty/dmnautilus-) (upgraded from CIAO version)
 - [`dmradar`](https://github.com/kglotfelty/dmradar) polar version of `dmnautilus`
+
+These require the user be able to build CIAO, and then these tools can be
+built.  Contact me.
 
 ## Installation
 
@@ -34,3 +36,13 @@ python setup.py install
 
 If you do not have write access to your CIAO installtion, then 
 you need to modify the `setup.cfg`.
+
+
+## Banner
+
+In the banner image above, from left to right we have
+original data, `dmnautilus` (original), `contour_map`, `grow_from_max`, 
+`pathfinder`, `dragon_scales`, `hexmap`, `mkregmap`, 
+`centroid_map`, and `dmradar`
+
+
