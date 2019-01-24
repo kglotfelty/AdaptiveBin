@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cxchelptopics SYSTEM "CXCHelp.dtd">
+<cxchelptopics>
+<ENTRY 
+        context="tools" 
+        key="contour_map" 
+        refkeywords="contour map mask adaptive bin group sanders contbin" 
+        seealsogroups="dmimgtools"
+    >
+    <SYNOPSIS>
+       Adaptively bin an image using a contour map algorithm
+    </SYNOPSIS>
+    <DESC>
+        <PARA>
+        The contour_map tool works by locating the maximum pixel value
+        in the infile image.  It determines which contour levels the
+        pixel value is between, and then groups all contiguous pixels
+        with values above the lower contour limit.  There is no
+        limit on the total flux nor SNR of the pixel values in the group.
+        The only restriction is that the pixels must be within 
+        the specified radius of the starting pixel.  After that 
+        group is created, the process is repeated by locating the maximum 
+        pixel not already included in a group, and repeating the
+        contour search.  Disjoint regions often will have the same 
+        contour limits 
+        </PARA>
+
+        <PARA>
+        The input image should be smoothed.  It can also
+        background subtracted and exposure corrected.  The 
+        image does not have to be counts or flux; it could be 
+        a hardness ratio map, a mean energy map, or any other
+        2D image where the goal is to create groups of pixels
+        with similar values.
+        </PARA>
+
+        <PARA>
+        Under the hood, the script is using the dmimglasso tool to 
+        create the localized contour regions.        
+        </PARA>
+
+        <PARA>
+        Users have two options to specify the contour levels.  
+        The levels parameter can be used to specify a stack of 
+        values.  If levels is left blank, users must specify
+        the number of levels between the min and max
+        pixel values in the image using the nlevels parameter and the
+        spacing between them using scale=linear or scale=log.        
+        In either setup, at most maxcontours individual groups will be
+        created.  This stops the algorithm from creating many small
+        regions at the edge of the image (or detector field of view).        
+        </PARA>
+    </DESC>
+
+
+     <QEXAMPLELIST>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>% aconvolve img.fits sm_img.fits "lib:gaus(2,5,1,3,3)"</LINE>
+            <LINE>% contour_map sm_img.fits sm_img.map binimg=sm_img.img levels=1,2,4,8,16</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+                In this example the input image is smoothed with a simple
+                3-pixels sigma Gaussian using the aconvolve tool. 
+                That is then used to create contour_map with 
+                contour levels at 1,2,4,8,16.  The contour level values
+                are arbitrary.
+            </PARA>
+            <PARA>
+                The tool creates two output files.  The outfile, sm_img.map,
+                is an image whose pixel values indicate which pixels
+                are grouped together.  Note that due to the contour
+                algorithm there may be holes inside a group
+                where the pixel in the holes belong to a different
+                group or remain ungrouped.  (map values equal to 0
+                are ungrouped.)  The binimg output file is the
+                result of applying the map file to the infile to produce
+                a binned image.
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>% aconvolve img.fits sm_img.fits "lib:gaus(2,5,1,3,3)"</LINE>
+            <LINE>% contour_map sm_img.fits sm_img.map binimg=sm_img.img nlevels=20 scale=log</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This is the same example as above, except the levels are now
+            specified using the nlevels and and scale parameter.  
+            The tool will create 20 logarithmically spaced levels from 
+            the minimum pixel value to the maximum pixel value.
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>% contour_map sm_fluxed.fits fluxed.map distance=1000 maxcontours=500</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This example now allows the contours to extend upto 1000 
+            physical pixels from the starting location; but limits the
+            output to 500 contours (separate regions).
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+     </QEXAMPLELIST>
+
+     <PARAMLIST>
+        <PARAM name="infile" type="file" filetype="input" reqd="yes">
+            <SYNOPSIS>
+            Input image.
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+            Typically the input image will be a smoothed, counts (or [net] flux)
+            image. Contours are restricted to adjoining pixels begin 
+            within the same contour limits.  However, the tool is
+            agnostic about the input pixels values.  The input file
+            could be a hardness ratio map, a map of the median
+            energy, or any other 2D image where the goal is to 
+            group together similar contiguous pixels values.
+            </PARA>
+            <PARA>
+            The script will take advantage of any filter applied 
+            and recorded in the input files subspace.  Thus it can avoid
+            0 valued pixels outside the field-of-view or 
+            pixels with a value NaN.            
+            </PARA>
+            </DESC>
+        </PARAM>
+
+        <PARAM name="outfile" type="file" filetype="output" reqd="yes">
+          <SYNOPSIS>
+            Output map file
+          </SYNOPSIS>
+          <DESC>
+            <PARA>
+              The outfile is a map file containing integer pixel values.
+              The pixel values indicate which pixels are grouped
+              together by the algorithm.  A pixel value of 0 are pixels
+              which are ungrouped (ie outside the image subspace).            
+            </PARA>
+          </DESC>
+        </PARAM>
+
+
+        <PARAM name="binimg" type="file" filetype="output">
+          <SYNOPSIS>Optional, output binned image</SYNOPSIS>
+          <DESC>
+            <PARA>
+                If the binimg file is specified, the script
+                will use the input image and the output map file to
+                create a binned version of the input image.
+            </PARA>          
+          </DESC>
+        </PARAM>
+
+        <PARAM name="distance" type="real" def="75">
+        
+
+
+        </PARAM>
+
+        <PARAM name="shape" type="string" def="circle">
+        </PARAM>
+
+        <PARAM name="levels" type="string">
+        </PARAM>
+
+        <PARAM name="nlevels" type="integer" min="1" def="20">
+        </PARAM>
+
+        <PARAM name="scale" type="string" def="log">
+        </PARAM>
+        
+        <PARAM name="maxcontours" type="integer" def="1000" min="1">
+        </PARAM>
+
+        
+        <PARAM name="verbose" type="integer" def="1" min="0" max="5">
+            <SYNOPSIS>
+            Amount of chatter from the tool.
+            </SYNOPSIS>
+        </PARAM>
+        <PARAM name="clobber" type="boolean" def="no">
+            <SYNOPSIS>
+            Delete outfile if it already exists?
+            </SYNOPSIS>
+        </PARAM>
+    </PARAMLIST>
+
+    <ADESC title="Relation to Sanders' contour binning algorithm">
+      <PARA>
+      Many users reading this will already be familiar with Sander's et al. 
+      contour binning tool, 'contbin', 2006MNRAS.371..829S.  contbin is 
+      a very powerful tool which includes internal adaptive smoothing, 
+      as well as handling background and exposure maps as separate inputs.  
+      </PARA>
+      <PARA>
+      While conceptually the algorithms are similar they are in fact
+      very different beyond just the background and exposure corrections and
+      internal smoothing.     
+      Instead of pre-defined contour levels, contbin collects the 
+      maximum neighboring pixels together until a SNR threshold is
+      achieved.  It then moves to the next highest (or lowest) pixel
+      value and repeats the process; each group then has its own 
+      limits.  There are also differences in how to deal with 
+      long, thin groups; contbin uses a robust roundness metric to
+      inhibit this behavior (whereas contour_map imposes a simple geometric
+      distance threshold).
+      </PARA>    
+      <PARA>
+      contbin has many features that are likely going to 
+      satisfy many users needs beyond what
+      contour_map offers.  It also has a large number of 
+      publication citations and active user base.   In short, users
+      of contour_map should also evaluate contbin for their projects.
+      </PARA>
+    
+    </ADESC>
+
+    <BUGS>
+        <PARA>
+            See the
+            <HREF link="http://cxc.harvard.edu/ciao/bugs/index.html">CIAO
+            website</HREF> for an up-to-date listing of known bugs.
+        </PARA>
+    </BUGS>
+    <LASTMODIFIED>January 2019</LASTMODIFIED>
+</ENTRY>
+</cxchelptopics>
