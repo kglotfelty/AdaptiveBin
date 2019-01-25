@@ -22,7 +22,7 @@
         group is created, the process is repeated by locating the maximum 
         pixel not already included in a group, and repeating the
         contour search.  Disjoint regions often will have the same 
-        contour limits 
+        contour limits.
         </PARA>
 
         <PARA>
@@ -117,7 +117,7 @@
             <DESC>
                 <PARA>
             Typically the input image will be a smoothed, counts (or [net] flux)
-            image. Contours are restricted to adjoining pixels begin 
+            image. Contours are restricted to contiguous  pixels  
             within the same contour limits.  However, the tool is
             agnostic about the input pixels values.  The input file
             could be a hardness ratio map, a map of the median
@@ -160,24 +160,95 @@
         </PARAM>
 
         <PARAM name="distance" type="real" def="75">
-        
-
+          <SYNOPSIS>Max distance from starting pixel (in physical pixels)</SYNOPSIS>
+          <DESC>
+            <PARA>
+              The distance parameter is used together with the shape
+              parameter to determine the maximum distance from
+              the starting pixel to group together.
+            </PARA>
+            <PARA>
+              For shape=circle, distance is the radius of a circle,
+              in units of physical pixels, centered on the starting pixel.
+              For shape=box, a square with total side length equal to
+              twice the distance value is used.
+            </PARA>
+          
+          </DESC>
 
         </PARAM>
 
         <PARAM name="shape" type="string" def="circle">
+            <SYNOPSIS>Shape of distance measure</SYNOPSIS>
+         <DESC>
+            <PARA>
+              The distance parameter is used together with the shape
+              parameter to determine the maximum distance from
+              the starting pixel to group together.
+            </PARA>
+            <PARA>
+              For shape=circle, distance is the radius of a circle,
+              in units of physical pixels, centered on the starting pixel.
+              For shape=box, a square with total side length equal to
+              twice the distance value is used.
+            </PARA>
+          </DESC>
+
         </PARAM>
 
-        <PARAM name="levels" type="string">
+        <PARAM name="levels" type="string" stacks="yes" def="">
+            <SYNOPSIS>User specified contour levels</SYNOPSIS>
+            <DESC>
+              <PARA>
+                The level parameters is a stack of values to use
+                for the contour levels.  If the levels
+                parameter is blank, then the tool will use
+                the nlevels and scale parameters to determine 
+                the scales from the min and max pixel values.                
+              </PARA>
+            
+            </DESC>
         </PARAM>
 
         <PARAM name="nlevels" type="integer" min="1" def="20">
+            <SYNOPSIS>Number of contour levels</SYNOPSIS>
+            <DESC>
+              <PARA>
+              If the levels parameter is blank, the tool will
+              create nlevel contour levels between the min and
+              max pixel value; the scale parameter specifies
+              whether the levels are spaced linearly or 
+              logarithmically.
+              </PARA>
+            </DESC>
         </PARAM>
 
         <PARAM name="scale" type="string" def="log">
+            <SYNOPSIS>Spacing between contour levels</SYNOPSIS>
+            <DESC>
+              <PARA>
+              If the levels parameter is blank, the tool will
+              create nlevel contour levels between the min and
+              max pixel value; the scale parameter specifies
+              whether the levels are spaced linearly or 
+              logarithmically.
+              </PARA>
+            </DESC>
         </PARAM>
         
         <PARAM name="maxcontours" type="integer" def="1000" min="1">
+            <SYNOPSIS>Maximum number of regions</SYNOPSIS>
+            <DESC>
+              <PARA>
+              It is often the case that at the edge of the image
+              there are many isolated, small, insignificant 
+              groups of pixels which end up in their own
+              contour regions.  This is not only inefficient in
+              later processing, but it also causes this tool to 
+              run much longer.  The maxcontours parameter limits the
+              output to at most this many regions.              
+              </PARA>
+            </DESC>
         </PARAM>
 
         
