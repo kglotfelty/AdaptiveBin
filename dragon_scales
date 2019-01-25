@@ -185,11 +185,11 @@ def main():
     outfile_clobber_checks(pars["clobber"], pars["binimg"] )
 
     if "circle" == pars["shape"]:
-        dragon = DragonScales( pars["infile"], pars["psffile"] )
+        dragon = DragonScales( pars["infile"], pars["radius"] )
     elif "box" == pars["shape"]:
-        dragon = RoofingTiles(  pars["infile"], pars["psffile"] )
+        dragon = RoofingTiles(  pars["infile"], pars["radius"] )
     elif "diamond" == pars["shape"]:
-        dragon = Diamonds(  pars["infile"], pars["psffile"] )
+        dragon = Diamonds(  pars["infile"], pars["radius"] )
     else:
         raise ValueError("Unknown shape value {}".format(pars["shape"]))
 

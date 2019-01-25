@@ -1,5 +1,5 @@
 infile,f,a,"",,,"Input image"
-psffile,f,a,"",,,"Input PSF size file or single number"
+radius,f,a,"",,,"Input radius map file or single number"
 outfile,f,a,"",,,"Output map"
 binimg,f,h,"",,,"Output image file"
 shape,s,h,"circle","circle|box|diamond",,"Shape of mask regions"
