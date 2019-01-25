@@ -3,25 +3,105 @@
 <cxchelptopics>
 <ENTRY 
         context="tools" 
-        key="centroid_map" 
-        refkeywords="centroid map mask adaptive bin group grow max tessellation" 
+        key="dragon_scales" 
+        refkeywords="region dragon scales scale tile roof circle box diamond map mask adaptive bin group grow max tessellation" 
         seealsogroups="dmimgtools"
     >
     <SYNOPSIS>
-       Adaptively bin an image using centroid map algorithm
+       Adaptively bin image using overlapping regions
     </SYNOPSIS>
     <DESC>
         <PARA>
+            dragon_scales works by locating the maximum pixel 
+            value in the image and grouping all pixels in a 
+            circular region around it.  It then repeats this
+            for the maximum pixel not already in a group. This continues 
+            until all pixels are grouped.  Since the max is often at the
+            edge of an existing group, the regions this tool creates 
+            often overlap; giving the visual appearance of scales
+            on a reptile.
         </PARA>
+        <PARA>
+            The radius of the circle is either a single number used 
+            for all pixels, or users can supply a map which provides
+            different radius values at all locations.  The shape
+            of the region can also be changed from a circle to
+            a box (square) or diamond (rotated square).
+        </PARA>
+        <PARA>
+            The output file is the map file: an image
+        whose pixel values indicate which pixels are grouped together.
+        If the binimg parameter is set, the tool will 
+        apply the map file to the input image to create an
+        adaptively binned image.        
+        </PARA>
+        <PARA>
+        This algorithm works best if the input image is smoothed slightly;
+        but smoothing is not required.         
+        </PARA>
+
+        <PARA>
+        This algorithm can generate many small isolated pixel groups 
+        between larger groups as it "fills in the gap" between them.
+        The post-processing script, merge_too_small, is often needed 
+        to purge these insignificant regions.
+        </PARA>
+
     </DESC>
+
      <QEXAMPLELIST>
         <QEXAMPLE>
           <SYNTAX>
+            <LINE>% dragon_scales sm_img.fits 10 out.map</LINE>
+            <LINE>% merge_too_small out.map min10px.map minval=10 method=area</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            In this example the smoothed input image is adaptively
+            smoothed using the overlapping regions algorithm where
+            the radius of the circular regions is set to 10 logical
+            pixels.
+            </PARA>
+            <PARA>
+            The output is then processed through the merge_too_small
+            script to reassign any small groups, less than 10 pixels, 
+            to their largest neighbor.            
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>% mkpsfmap sm_img.fits psf.map ecf=0.95 energy=1.0 units=logical</LINE>
+            <LINE>% dragon_scales sm_img.fits psf.map vary.map</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+                This shows how to supply a map file as input.  The 
+                output from mkpsfmap is an image whose pixel values
+                represent the size of the PSF, in this example the 
+                95% radius at 1.0keV.  The units of the psffile must
+                be in logical (image) pixels.
+            </PARA>
+            <PARA>
+                The PSF map is then input to dragon_scales.  When 
+                dragon_scales locates a pixel maximum, it looks up
+                the radius of the shape at that location in the psffile 
+                and groups the pixels out to that distance.
+            </PARA>            
+          </DESC>
+        </QEXAMPLE>
+        <QEXAMPLE>
+          <SYNTAX>
             <LINE>
+                $ dragon_scales img.fits 15 square.map shape=box binimg=square.img
             </LINE>
           </SYNTAX>
           <DESC>
             <PARA>
+            Use squares (boxes) instead of circles; the total side length
+            of the squares is twice the input radius (logical pixels).
+            The binned image is also created by applying the output
+            map file to the input image.
             </PARA>
           </DESC>
         </QEXAMPLE>
@@ -33,10 +113,72 @@
             Input image.
             </SYNOPSIS>
             <DESC>
-                <PARA>
+            <PARA>The image to be grouped.  Generally this 
+            algorithm works better if it is slightly smoothed.
+            </PARA>
+            <PARA>
+            Null  and NaN pixels, as well as those pixels outside the
+            image subspace will not be grouped.
             </PARA>
           </DESC>
         </PARAM>
+
+        <PARAM name="radius" type="file" filetype="input" reqd="yes">
+          <SYNOPSIS>Radius.  Either a single value or filename</SYNOPSIS>
+          <DESC>
+              <PARA>
+            The radius for the regions is provided in logical (image)
+            pixel sizes.  This parameter may either take a single value,
+            or a file name.  If a file name is used, it must have the
+            same size as infile; the pixel value will be used as
+            the radius at that location.   Typical radius input files
+            could be a map of the PSF size or a map containing the
+            radii to achieve a fixed number of counts.
+            </PARA>
+          </DESC>
+            
+        </PARAM>
+
+        <PARAM name="outfile" type="file" filetype="output" reqd="yes">
+          <SYNOPSIS>
+            Output map file
+          </SYNOPSIS>
+          <DESC>
+            <PARA>
+              The outfile is a map file containing integer pixel values.
+              The pixel values indicate which pixels are grouped
+              together by the algorithm.  A pixel value of 0 are pixels
+              which are ungrouped (ie outside the image subspace).            
+            </PARA>
+          </DESC>
+        </PARAM>
+
+
+        <PARAM name="binimg" type="file" filetype="output">
+          <SYNOPSIS>Optional, output binned image</SYNOPSIS>
+          <DESC>
+            <PARA>
+                If the binimg file is specified, the script
+                will use the input image and the output map file to
+                create a binned version of the input image.
+            </PARA>          
+          </DESC>
+        </PARAM>
+        
+
+
+        <PARAM name="shape" type="string" def="circle">
+          <SYNOPSIS>Shape of overlapping regions: circle|box|diamond</SYNOPSIS>
+          <DESC>
+            <PARA>
+            The shape of the region to draw at maximum pixel value.  
+            It can be either a cirlce, a box (square), or a 
+            diamond (rotated square).            
+            </PARA>          
+        </DESC>
+        </PARAM>
+
+
         <PARAM name="verbose" type="integer" def="1" min="0" max="5">
             <SYNOPSIS>
             Amount of chatter from the tool.
