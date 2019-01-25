@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cxchelptopics SYSTEM "CXCHelp.dtd">
+<cxchelptopics>
+<ENTRY 
+        context="tools" 
+        key="centroid_map" 
+        refkeywords="centroid map mask adaptive bin group grow max tessellation" 
+        seealsogroups="dmimgtools"
+    >
+    <SYNOPSIS>
+       Adaptively bin an image using centroid map algorithm
+    </SYNOPSIS>
+    <DESC>
+        <PARA>
+        </PARA>
+    </DESC>
+     <QEXAMPLELIST>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>
+            </LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+     </QEXAMPLELIST>
+
+     <PARAMLIST>
+        <PARAM name="infile" type="file" filetype="input" reqd="yes">
+            <SYNOPSIS>
+            Input image.
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+            </PARA>
+          </DESC>
+        </PARAM>
+        <PARAM name="verbose" type="integer" def="1" min="0" max="5">
+            <SYNOPSIS>
+            Amount of chatter from the tool.
+            </SYNOPSIS>
+        </PARAM>
+        <PARAM name="clobber" type="boolean" def="no">
+            <SYNOPSIS>
+            Delete outfile if it already exists?
+            </SYNOPSIS>
+        </PARAM>
+    </PARAMLIST>
+
+
+    <BUGS>
+        <PARA>
+            See the
+            <HREF link="http://cxc.harvard.edu/ciao/bugs/index.html">CIAO
+            website</HREF> for an up-to-date listing of known bugs.
+        </PARA>
+    </BUGS>
+    <LASTMODIFIED>January 2019</LASTMODIFIED>
+</ENTRY>
+</cxchelptopics>
