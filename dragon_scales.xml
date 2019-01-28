@@ -166,16 +166,26 @@
         </PARAM>
         
 
-
         <PARAM name="shape" type="string" def="circle">
-          <SYNOPSIS>Shape of overlapping regions: circle|box|diamond</SYNOPSIS>
+          <SYNOPSIS>Shape of overlapping regions: circle|box|diamond|hexagon|triangle|itriangle</SYNOPSIS>
           <DESC>
             <PARA>
             The shape of the region to draw at maximum pixel value.  
-            It can be either a cirlce, a box (square), or a 
-            diamond (rotated square).            
+            It can be either a cirlce, a box (square), a 
+            diamond (rotated square), a hexagon, a triangle, or
+            an inverted triangle (itrangle).
             </PARA>          
         </DESC>
+        </PARAM>
+
+        <PARAM name="gradient" type="boolean" def="yes">
+          <SYNOPSIS>Rotate shape to match local gradient</SYNOPSIS>
+          <DESC>
+             <PARA>
+                The shape can be rotated to match the gradient at the
+                location of the local maximum. 
+             </PARA>          
+          </DESC>
         </PARAM>
 
 
