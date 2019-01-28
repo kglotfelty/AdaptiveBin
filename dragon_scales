@@ -98,7 +98,7 @@ class OverlappingShapes():
         for _y in range( yy-rad_2-1, yy+rad_2+1, 1):
             if _y < 0 or _y >= self.mask.shape[0]:
                 continue
-            dy = yy-_y
+            dy = _y-yy
             for _x in range( xx-rad_2-1, xx+rad_2+1, 1):
                 if _x < 0 or _x >= self.mask.shape[1]:
                     continue
@@ -109,7 +109,7 @@ class OverlappingShapes():
                     self.vals[_y, _x] = self.nullval
                     continue
 
-                dx = xx-_x
+                dx = _x-xx
 
                 rx,ry = rotate(dx,dy)
                 if self.inside( rx,ry, rad):
@@ -188,7 +188,19 @@ class HexTiles( RegionTiles):
         py = np.array( [ 0.0,   s60, s60, 0.0, -s60, -s60,  0.0 ] )*radius
         self.region = cxcregion.polygon(px,py)
 
+
 class TriangleTiles( RegionTiles):
+    """
+    
+    """    
+    def make_region(self, radius):
+        import region as cxcregion
+        px = np.array( [ -0.5, 0.5, 0 ] )*radius
+        py = np.array( [ -0.5, -0.5, 0.5 ] )*radius
+        self.region = cxcregion.polygon(px,py)
+
+    
+class InvertedTriangleTiles( RegionTiles):
     """
     
     """    
@@ -197,10 +209,8 @@ class TriangleTiles( RegionTiles):
         px = np.array( [ -0.5, 0.5, 0 ] )*radius
         py = np.array( [ 0.5, 0.5, -0.5 ] )*radius
         self.region = cxcregion.polygon(px,py)
+
     
-
-
-
 class RoofingTiles( OverlappingShapes ):
     """
     Use square shapes
@@ -208,6 +218,7 @@ class RoofingTiles( OverlappingShapes ):
     @staticmethod
     def inside( dx, dy, rad ):        
         return (max( [abs(dx),abs(dy)] ) <= rad)
+
 
 class DragonScales( OverlappingShapes ):
     """
@@ -217,6 +228,7 @@ class DragonScales( OverlappingShapes ):
     def inside( dx, dy, rad ):
         from math import hypot
         return (hypot( dx, dy) <= rad)
+
     
 class Diamonds( OverlappingShapes ):
     """
@@ -256,6 +268,8 @@ def main():
         dragon = HexTiles(  pars["infile"], pars["radius"], gradient )
     elif "triangle" == pars["shape"]:
         dragon = TriangleTiles(  pars["infile"], pars["radius"], gradient )
+    elif "itriangle" == pars["shape"]:
+        dragon = InvertedTriangleTiles(  pars["infile"], pars["radius"], gradient )
     else:
         raise ValueError("Unknown shape value {}".format(pars["shape"]))
 
