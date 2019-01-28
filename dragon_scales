@@ -42,7 +42,7 @@ class OverlappingShapes():
 
     invalid_pixel = 12345678
     
-    def __init__(self, infile, psffile ):
+    def __init__(self, infile, psffile, gradient ):
         """
         """
         from crates_contrib.masked_image_crate import MaskedIMAGECrate
@@ -58,6 +58,12 @@ class OverlappingShapes():
 
         self.nullval = -999
         self.mask = None
+
+        if gradient:
+            gx,gy = np.gradient( self.vals)
+            self.angle = np.arctan2(gy,gx)  # radians, keep it like that
+        else:
+            self.angle = np.zeros_like(self.vals)
 
 
     def get_psfsize( self, xx, yy):
@@ -76,12 +82,24 @@ class OverlappingShapes():
         """
 
         rad = int(self.get_psfsize( xx, yy )+0.5)
+        
+        rad_2 = 2*rad # allow for rotation of shapes
+        
 
-        for _y in range( yy-rad-1, yy+rad+1, 1):
+        def rotate( _x, _y ):
+            aa = -self.angle[yy,xx]
+            cos_a = np.cos(aa)
+            sin_a = np.sin(aa)        
+            ox =  cos_a * _x + sin_a * _y
+            oy = -sin_a * _x + cos_a * _y
+            return(ox,oy)
+        
+
+        for _y in range( yy-rad_2-1, yy+rad_2+1, 1):
             if _y < 0 or _y >= self.mask.shape[0]:
                 continue
             dy = yy-_y
-            for _x in range( xx-rad-1, xx+rad+1, 1):
+            for _x in range( xx-rad_2-1, xx+rad_2+1, 1):
                 if _x < 0 or _x >= self.mask.shape[1]:
                     continue
                 if self.mask[_y,_x] != 0:
@@ -92,7 +110,9 @@ class OverlappingShapes():
                     continue
 
                 dx = xx-_x
-                if self.inside( dx, dy, rad):
+
+                rx,ry = rotate(dx,dy)
+                if self.inside( rx,ry, rad):
                     self.mask[_y, _x] = maskval
                     self.vals[_y, _x] = self.nullval
 
@@ -101,7 +121,7 @@ class OverlappingShapes():
         """
         """
         ll = np.where( self.vals == np.max( self.vals ) )
-        ly = ll [0][0]
+        ly = ll[0][0]
         lx = ll[1][0]
         
         self.vals[ly,lx] = self.nullval
@@ -139,6 +159,47 @@ class OverlappingShapes():
         dmImageSetData( out_dd, self.mask )
         dmImageClose( out_img )
         dmImageClose( dm_img)
+
+
+class RegionTiles( OverlappingShapes ):
+    """
+    Use cxcRegion for shapes
+    """
+    def make_region(self, radius):
+        raise NotImplementedError("Implement in the subclass")
+
+            
+    def inside( self, dx, dy, rad ):        
+        if not hasattr(self, "region"):
+            self.make_region(rad)
+                
+        return self.region.is_inside( dx,dy)
+
+
+class HexTiles( RegionTiles):
+    """
+    
+    """
+    def make_region(self, radius):
+        import region as cxcregion
+        s60 = np.sin(np.deg2rad(60.0))
+        c60 = np.cos(np.deg2rad(60.0))
+        px = np.array( [ -1.0, -c60, c60, 1.0,  c60, -c60, -1.0 ] )*radius
+        py = np.array( [ 0.0,   s60, s60, 0.0, -s60, -s60,  0.0 ] )*radius
+        self.region = cxcregion.polygon(px,py)
+
+class TriangleTiles( RegionTiles):
+    """
+    
+    """    
+    def make_region(self, radius):
+        import region as cxcregion
+        px = np.array( [ -0.5, 0.5, 0 ] )*radius
+        py = np.array( [ 0.5, 0.5, -0.5 ] )*radius
+        self.region = cxcregion.polygon(px,py)
+    
+
+
 
 class RoofingTiles( OverlappingShapes ):
     """
@@ -183,13 +244,18 @@ def main():
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], pars["outfile"] )
     outfile_clobber_checks(pars["clobber"], pars["binimg"] )
+    gradient = ("yes" == pars["gradient"])
 
     if "circle" == pars["shape"]:
-        dragon = DragonScales( pars["infile"], pars["radius"] )
+        dragon = DragonScales( pars["infile"], pars["radius"], gradient )
     elif "box" == pars["shape"]:
-        dragon = RoofingTiles(  pars["infile"], pars["radius"] )
+        dragon = RoofingTiles(  pars["infile"], pars["radius"], gradient )
     elif "diamond" == pars["shape"]:
-        dragon = Diamonds(  pars["infile"], pars["radius"] )
+        dragon = Diamonds(  pars["infile"], pars["radius"], gradient )
+    elif "hexagon" == pars["shape"]:
+        dragon = HexTiles(  pars["infile"], pars["radius"], gradient )
+    elif "triangle" == pars["shape"]:
+        dragon = TriangleTiles(  pars["infile"], pars["radius"], gradient )
     else:
         raise ValueError("Unknown shape value {}".format(pars["shape"]))
 
