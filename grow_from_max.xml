@@ -3,7 +3,7 @@
 <cxchelptopics>
 <ENTRY 
         context="tools" 
-        key="centroid_map" 
+        key="grow_from_max" 
         refkeywords="cell voronoi grow localmax max site map mask adaptive bin group grow max tessellation" 
         seealsogroups="dmimgtools"
     >
