@@ -37,6 +37,13 @@ python setup.py install
 If you do not have write access to your CIAO installtion, then 
 you need to modify the `setup.cfg`.
 
+You will then need to re-index your ahelp to get access to the
+help files
+
+```bash
+ahelp -r
+```
+
 
 ## Banner
 
