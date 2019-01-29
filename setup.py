@@ -23,10 +23,10 @@ docs = [ x+".xml" for x in scripts if os.path.exists(x+".xml")]
 
 from distutils.core import setup
 setup( name='AdaptiveBin',
-        version='0.0.1',
+        version='0.9.0',
         description='Adaptive binning scripts',
-        author='Anonymous',
-        author_email='WhoDat@cfa.harvard.edu',
+        author='Ken Glotfelty',
+        author_email='kglotfelty@cfa.harvard.edu',
         url='https://github.com/kglotfelty/AdaptiveBin/',
         scripts = scripts,
         data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
