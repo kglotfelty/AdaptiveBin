@@ -100,10 +100,37 @@ class Image():
         self.ij = [ (i,j) for i,j in zip(ii,jj) if img.valid(int(i-1),int(j-1))]
 
         # Convert  ii,jj to xx,yy -- faster to do all at once
-        self.xy = sky.apply( np.array(self.ij))
+        self.xy = list(sky.apply( np.array(self.ij)))
+        self.x,self.y = zip(*self.xy)
+        self.x = np.array(self.x)
+        self.y = np.array(self.y)
         self.infile = infile
         self.xlen = xlen
         self.ylen = ylen
+
+
+    def Xmap_regions( self, regions ):
+        
+        od = np.zeros( [self.ylen, self.xlen ] )
+        _idx= np.arange(len(self.x))
+
+        for ee,rr in enumerate(regions):
+            
+            xl,yl,xh,yh = regExtent(rr)
+            
+            xidx = np.logical_and( self.x >= xl, self.x <= xh )
+            yidx = np.logical_and( self.y >= yl, self.y <= yh )
+            idx = np.logical_and( xidx, yidx)
+            idx = _idx[idx]
+            
+            for ii in idx:
+                
+                if regInsideRegion( rr, self.x[ii], self.y[ii] ):                    
+                    _i = int(self.ij[ii][0])-1
+                    _j = int(self.ij[ii][1])-1                    
+                    od[_j][_i] = ee+1
+                
+        return od
 
 
     def map_regions( self, regions ):
