@@ -56,8 +56,10 @@ def get_region( n_at ):
         return None
     pos = stt["max_loc"]
     logc = thrsh.physical( *pos )
-    reg = thrsh.lasso( logc["logicalx"], logc["logicaly"], 
+    reg = thrsh.lasso( (int)(logc["logicalx"]+0.5), (int)(logc["logicaly"]+0.5), 
       low_value=0.1, high_value=n_at+0.5, value="absolute", coord="logical" )
+
+
     return str(reg)
 
 
@@ -90,7 +92,6 @@ def main():
     outreg = parallel_map( get_region, uu )
     
     #outreg = [get_region(i) for i in uu]
-
 
     i=0
     while True:
