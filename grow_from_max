@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2014 Smithsonian Astrophysical Observatory
+# Copyright (C) 2014-2020 Smithsonian Astrophysical Observatory
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -20,7 +20,7 @@
 from __future__ import print_function
 
 toolname = "grow_from_max"
-__revision__ = "15 January 2019"
+__revision__ = "25 February 2020"
 
 
 import os
@@ -72,7 +72,7 @@ def find_local_max( infile, mask="box(0,0,5,5)"):
 
 def make_mask( shape, radius ):
     """
-    
+    This is the mask used to determine local max    
     """
     
     if "circle" == shape:
@@ -84,58 +84,86 @@ def make_mask( shape, radius ):
         raise RuntimeError("Unknown shape '{}'".format(shape))
 
 
-def _crystal_growth( vv,img ):
+
+def cercle_circonscrit(T):
+    """Find the center of a circle that circumscribes 3 points (triangle)
+    
+    The 3 points cannot be colinear or this blows up.
+        
+    https://stackoverflow.com/questions/44231281/circumscribed-circle-of-a-triangle-in-2d
     """
-    Main loop, removed from below for readability
-    """
-    ylen = vv.shape[0]
-    xlen = vv.shape[1]
-    npts = 0
+    import numpy as np
+    from math import sqrt
+    (x1, y1), (x2, y2), (x3, y3) = T
+    A = np.array([[x3-x1,y3-y1],[x3-x2,y3-y2]])
+    Y = np.array([(x3**2 + y3**2 - x1**2 - y1**2),(x3**2+y3**2 - x2**2-y2**2)])
+    if np.linalg.det(A) == 0:
+        return False
+    Ainv = np.linalg.inv(A)
+    X = 0.5*np.dot(Ainv,Y)
+    x,y = X[0],X[1]
+    #r = sqrt((x-x1)**2+(y-y1)**2)
+    return (x,y) #,r
 
-    # make a copy of the current pixel values
-    cc = vv.copy()
 
-    # Loop over all pixels
-    for yy in range(ylen):
-        for xx in range(xlen):            
-            # If pixel has already been assigned, then skip it
-            if cc[yy,xx] != 0:
-                continue
-
-            if not img.valid(xx,yy):
-                continue
-
-            # Keep track of how many pixels updated. Stop when npts=0
-            npts = npts + 1
-
-            # Initialize output; set to current value
-            maxval = cc[yy,xx]
-
-            # Loop +/- 1 in each x and y to look for value > maxval
-            # We look in the copy, cc, which is not updated until next
-            # interation.
-            for dy in [-1,0,1]:
-                dyy = yy+dy
-                if dyy< 0 or dyy >= ylen:
-                    continue
-                for dx in [-1,0,1]:
-                    dxx = xx+dx
-                    if dxx < 0 or dxx >= xlen:
-                        continue                    
-                    maxval = max( maxval, cc[dyy,dxx] )
-            
-            # Save the maxval in the output
-            vv[yy,xx] = maxval
-
-    return npts
+class Cell():
+    """Class to hold Voronoi cells"""
+    
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+        self.neighbors = []
+        
+    def calc_midpts(self):
+        from math import atan2
+        self.midpts = []
+        for n in self.neighbors:
+            (midx,midy) = n
+            ang = atan2(midy-self.y,midx-self.x)
+            self.midpts.append( (ang,(midx,midy)))
+        
+        self.midpts.sort()
+        self.cellx=[]
+        self.celly=[]
+        for p in self.midpts:
+            self.cellx.append(p[1][0])
+            self.celly.append(p[1][1])
+                    
     
 
-def crystal_growth( infile, sitesfile, outfile, clobber ):
+def make_vcells( x, y ):
+    """
+    Use matplotlib's Traiangulation to create Delauny triangulation,
+    then find centers of triangles to create Voronoi cells.
+    """
+
+    import matplotlib.tri as mtri
+    tri = mtri.Triangulation(x,y)
+
+    pts = [Cell(_x,_y) for _x,_y in zip(x,y)]
+
+    for t in tri.get_masked_triangles():
+        # Find center of triangle; add center to list of 
+        # neighbors at each vertex of the triangle
+        midx,midy=cercle_circonscrit(list(zip(x[t],y[t])))        
+        pts[t[0]].neighbors.append((midx,midy))
+        pts[t[1]].neighbors.append((midx,midy))
+        pts[t[2]].neighbors.append((midx,midy))
+
+    for p in pts:
+        p.calc_midpts()
+
+    return pts
+
+
+def compute_vcells( infile, sitesfile, outfile, clobber ):
     """
     Given a set of local max, grow the regions until they touch and
     cover the image
     """
     from crates_contrib.masked_image_crate import MaskedIMAGECrate
+    import numpy as np
+    from region import polygon
 
     verb1("Assigning pixels to maxima")
 
@@ -143,22 +171,50 @@ def crystal_growth( infile, sitesfile, outfile, clobber ):
     img = MaskedIMAGECrate(sitesfile,mode="r")
     imgd = img.get_image()
     vv = imgd.values
-    n0 = vv.shape[0]*vv.shape[1]
 
     # Open infile to get subspace
     dss_img = MaskedIMAGECrate(infile,mode="r")
-    
-    # Loop until all pixel are assigned 
-    while True:
-        # Stop when all pixels have been assigned.
-        npts = _crystal_growth(vv,dss_img)
-        verb1("Pixels remaining to be mapped : {}".format( npts ))
-        if 0 == npts:
-            break
+
+    # get non-zero pixels
+    sites = np.argwhere(vv>0)
+
+    # get pixel value at all non-zero pixels
+    sitesv = [vv[y,x] for y,x in sites]
+
+    # get x,y coords of non-zero pixels
+    xx = sites[:,1]
+    yy = sites[:,0]
+
+    # Compute V. cells.
+    cells = make_vcells( xx, yy)
+
+    # Now fill in the V. cells with the pixel value    
+    outvv = np.zeros_like(vv)
+    for c,v in zip(cells,sitesv):
+        try:
+            p = polygon( c.cellx, c.celly)
+        except:
+            continue
+        
+        ext=p.extent()
+                
+        for _y in np.arange( int(ext["y0"]),int(ext["y1"])+1):
+            if _y < 0 or _y >= vv.shape[0]:
+                continue
+
+            for _x in np.arange(int(ext["x0"]),int(ext["x1"])+1):
+                if _x < 0 or _x >= vv.shape[1]:
+                    continue
+                
+                if not dss_img.valid(_x,_y):
+                    continue
+
+                if p.is_inside(_x,_y):
+                    outvv[_y,_x] = v
 
     # Save the values 
-    imgd.values = vv    
-    img.name = "localmax"
+    imgd.values = outvv
+    img.name = "tess"
     img.write( outfile, clobber=clobber )
 
 
@@ -188,7 +244,7 @@ def main():
     else:
         sitefile = pars["sitefile"]
 
-    crystal_growth( pars["infile"], sitefile, pars["outfile"], pars["clobber"] )
+    compute_vcells( pars["infile"], sitefile, pars["outfile"], pars["clobber"] )
     add_tool_history( pars["outfile"], toolname, pars, toolversion=__revision__)
     
     if len(pars["binimg"])>0 and "none" != pars["binimg"].lower():
