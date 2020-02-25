@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2019 Smithsonian Astrophysical Observatory
+# Copyright (C) 2019-2020 Smithsonian Astrophysical Observatory
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -110,7 +110,7 @@ def centroid_map( mapfile, img, outfile ):
     img.write_new_sites( outvals, outfile )
     
 
-def make_tool_grow_from_max():
+def make_tool_vtbin():
     import ciao_contrib.runtool as rt
     newtool = {
         'istool' : True,
@@ -126,7 +126,7 @@ def make_tool_grow_from_max():
                 rt.ParValue("clobber","b","Overwrite if file exists",False),
                 rt.ParRange("verbose","i","Debug level",0,0,5)
                 ]}
-    gfm = rt.CIAOToolParFile( "grow_from_max", newtool["req"], newtool["opt"])
+    gfm = rt.CIAOToolParFile( "vtbin", newtool["req"], newtool["opt"])
     return(gfm)
 
     
@@ -152,19 +152,18 @@ def main():
     from ciao_contrib._tools.fileio import outfile_clobber_checks
     outfile_clobber_checks(pars["clobber"], outfile )
 
+    
     img = InputImage(infile)
 
-    gfm = make_tool_grow_from_max()
-
+    vtbin = make_tool_vtbin()    
     mapfile = CIAOTemporaryFile()
-    gfm( infile=infile, outfile=mapfile.name, site=sitefile, clobber=True)
+    vtbin( infile=infile, outfile=mapfile.name, site=sitefile, clobber=True)
 
     for niter in range(numiter):
         sitefile = CIAOTemporaryFile()
         centroid_map( mapfile.name, img, sitefile.name )
-        
         mapfile = CIAOTemporaryFile()
-        gfm( infile=infile, outfile=mapfile.name, site=sitefile.name, clobber=True)
+        vtbin( infile=infile, outfile=mapfile.name, site=sitefile.name, clobber=True)
 
 
     from ciao_contrib.runtool import dmcopy
