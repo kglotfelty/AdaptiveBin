@@ -15,7 +15,7 @@ ver = sys.version_info
 os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1])
 
 
-scripts = ["contour_map","dragon_scales","grow_from_max","hexgrid","mkregmap","pathfinder",
+scripts = ["contour_map","dragon_scales","vtbin","hexgrid","mkregmap","pathfinder",
             "centroid_map", "merge_too_small", "map2reg"]
 params = [ x+".par" for x in scripts]
 docs = [ x+".xml" for x in scripts if os.path.exists(x+".xml")]

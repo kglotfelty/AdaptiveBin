@@ -3,7 +3,7 @@
 <cxchelptopics>
 <ENTRY 
         context="tools" 
-        key="grow_from_max" 
+        key="vtbin" 
         refkeywords="cell voronoi grow localmax max site map mask adaptive bin group grow max tessellation" 
         seealsogroups="dmimgtools"
     >
@@ -12,7 +12,7 @@
     </SYNOPSIS>
     <DESC>
         <PARA>
-            grow_from_max starts by identifying the local maxima in 
+            vtbin starts by identifying the local maxima in 
             the input image.  Each local max is assigned a unique
             group ID. It then computes the Voronoi Tessellation
             around the location of the local maxima (sites) and 
@@ -28,7 +28,7 @@
 
         <PARA title="See also: centroid_map">
           Users may also want to consider the centroid_map tool.  It
-          runs grow_from_max repeatedly adjusting the input sites 
+          runs vtbin repeatedly adjusting the input sites 
           to be the centroid of each cell.        
         </PARA>
 
@@ -39,7 +39,7 @@
         <QEXAMPLE>
           <SYNTAX>
             <LINE>
-            % grow_from_max sm_img.fits vt.map 
+            % vtbin sm_img.fits vt.map 
             </LINE>
           </SYNTAX>
           <DESC>
@@ -57,7 +57,7 @@
             <LINE>
             % dmimgfilt sm_img.fits points.img "max" "box(0,0,3,1)+box(0,0,1,3)"
             % dmimgblob points.img point.map srconly=yes thresh=0.5
-            % grow_from_max sm_img.fits vt.map sitefile=points.map
+            % vtbin sm_img.fits vt.map sitefile=points.map
             </LINE>
           </SYNTAX>
           <DESC>
@@ -75,7 +75,7 @@
         <QEXAMPLE>
           <SYNTAX>
             <LINE>
-            % grow_from_max sm_img.fits vt.map shape=circle radius=4 binimg=vt.img 
+            % vtbin sm_img.fits vt.map shape=circle radius=4 binimg=vt.img 
             </LINE>
           </SYNTAX>
           <DESC>

@@ -19,7 +19,7 @@
 
 from __future__ import print_function
 
-toolname = "grow_from_max"
+toolname = "vtbin"
 __revision__ = "25 February 2020"
 
 
@@ -192,10 +192,12 @@ def compute_vcells( infile, sitesfile, outfile, clobber ):
     outvv = np.zeros_like(vv)
     for c,v in zip(cells,sitesv):
         try:
+            # Some edge "polygons" are invalid; just skip them.
             p = polygon( c.cellx, c.celly)
         except:
             continue
         
+        # Loop over pixels just inside extent of polygon
         ext=p.extent()
                 
         for _y in np.arange( int(ext["y0"]),int(ext["y1"])+1):
