@@ -47,9 +47,8 @@ class MaskedIMAGECrate( IMAGECrate ):
     def __check_finite(self):
         """Check for NaN|Inf
         
-        -np.isfinite(), is "not np.isfinite()" 
         """
-        badidx = np.where( -(np.isfinite(self._pix)))
+        badidx = np.where( ~(np.isfinite(self._pix)))
         self._mask[badidx[0]] = 0
 
 
