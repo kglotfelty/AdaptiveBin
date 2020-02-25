@@ -17,8 +17,6 @@
             group ID. It then computes the Voronoi Tessellation
             around the location of the local maxima (sites) and 
             assigns all pixels within the Voronoi cells to the group. 
-            The actual tessellation is accomplished by dilating a map of
-            sites which is where the name of the tool comes from.
         </PARA>
         <PARA>
             Users can override the initial site location by supplying 
@@ -202,6 +200,6 @@
             website</HREF> for an up-to-date listing of known bugs.
         </PARA>
     </BUGS>
-    <LASTMODIFIED>January 2019</LASTMODIFIED>
+    <LASTMODIFIED>February 2020</LASTMODIFIED>
 </ENTRY>
 </cxchelptopics>
