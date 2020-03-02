@@ -20,7 +20,7 @@
 from __future__ import print_function
 
 toolname = "centroid_map"
-__revision__ = "18 January 2019"
+__revision__ = "25 February 2020"
 
 import sys
 import os
@@ -159,11 +159,23 @@ def main():
     mapfile = CIAOTemporaryFile()
     vtbin( infile=infile, outfile=mapfile.name, site=sitefile, clobber=True)
 
+    oldvals = read_file(mapfile.name).get_image().values.copy()
+
+
     for niter in range(numiter):
         sitefile = CIAOTemporaryFile()
         centroid_map( mapfile.name, img, sitefile.name )
+
         mapfile = CIAOTemporaryFile()
         vtbin( infile=infile, outfile=mapfile.name, site=sitefile.name, clobber=True)
+
+        newvals = read_file(mapfile.name).get_image().values.copy()
+        diff = np.argwhere( np.equal( oldvals, newvals) == False )
+        oldvals = newvals
+        verb2("Number of pixels different: {}".format(len(diff)))
+        if 0 == len(diff):
+            verb0("Converged at step {}. Done.".format(niter))
+            break
 
 
     from ciao_contrib.runtool import dmcopy
