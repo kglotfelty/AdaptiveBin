@@ -23,4 +23,11 @@ setup( name='AdaptiveBin',
         data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
         packages=["crates_contrib",]        
         )
-
+ 
+from subprocess import check_output
+print("Update ahelp database ...")
+sout = check_output("ahelp -r".split())
+for line in sout.decode().split("\n"):
+    for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
+        if line.startswith(summary):
+            print("    "+line)
