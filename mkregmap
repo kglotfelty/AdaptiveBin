@@ -29,7 +29,7 @@ import sys
 import os
 
 import numpy as np
-from region import *
+from region import CXCRegion
 
 
 import ciao_contrib.logger_wrapper as lw
@@ -46,31 +46,12 @@ def parse_region( region_string ):
     """
     Parse stack of regions
     """
-
-    def rparse( filename ):    
-        """
-        Parse the region file.  Try bare, if that fails then
-        wrap in a region() token.
-        """
-        try:
-            rr = regParse( filename )
-            if None == rr:
-                raise Exception("try region()")
-        except:
-            rr = regParse( "region({})".format(filename))
-            if None == rr:
-                raise ValueError("bad region {}".format(filename))
-
-        return rr
-
-
     # Region not pickle-able, so have to go serial
     import stk as stk
     ss = stk.build(region_string)
-    regions = [rparse(s) for s in ss ]
+    regions = [CXCRegion(s) for s in ss ]
     return regions
     
-
 
 class Image():
     
@@ -86,25 +67,15 @@ class Image():
         xlen = len(img_data[0])
         ylen = len(img_data)
 
-        # Create arrays for X,Y values.
-        ii = [float(x) for x in  list(range( 1, xlen+1)) * ylen ]
-        jj = [float(x) for x in  np.repeat( list(range(1,ylen+1)), xlen) ]
-
         # Get mapping to physical X,Y
         if coord.lower() not in [x.lower() for x in img.get_axisnames()] :
             raise ValueError("Coordinate '{}' is not in file".format(coord))
 
-        sky = img.get_transform(coord)
-
-        # Filter out invalid pixels
-        self.ij = [ (i,j) for i,j in zip(ii,jj) if img.valid(int(i-1),int(j-1))]
-
-        # Convert  ii,jj to xx,yy -- faster to do all at once
-        self.xy = sky.apply( np.array(self.ij))
+        self.sky = img.get_transform(coord)
         self.infile = infile
         self.xlen = xlen
         self.ylen = ylen
-
+        self.img = img
 
     def map_regions( self, regions ):
         """
@@ -112,30 +83,53 @@ class Image():
         If there are multiple regions covering the same 
         pixel, then the last one will win.
         """
-        
-        def in_region( xy ):
-            """
-            Locate the region the source is in.  1st region wins
-            """
-            retval = 0
 
-            for ii,rr in enumerate( regions ):
-                if regInsideRegion(rr, xy[0], xy[1]):
-                    retval = ii+1
-                    break
-
-            return retval
-
-        from sherpa.utils import parallel_map 
-        outmap = parallel_map( in_region, self.xy )
-
-        #od = np.array( outmap ).reshape( [self.ylen, self.xlen ] ) 
         od = np.zeros( [self.ylen, self.xlen ] )
-        for nn in range(len(outmap)):
-            _i = int(self.ij[nn][0]-1)
-            _j = int(self.ij[nn][1]-1)
-            od[_j,_i] = outmap[nn]
 
+        reg_no = 0
+        for rr in regions:
+            reg_no = reg_no+1
+
+            # Compute bounds of region
+            bnds = rr.extent()
+            xy = np.array([(bnds['x0'],bnds['y0']),
+                           (bnds['x1'],bnds['y1'])])
+            # Get bounds in image coordinates
+            ij = self.sky.invert(xy)
+
+            # Clip bounds 1:axis-length
+            i0 = np.floor(np.clip(ij[0][0],1,self.xlen)).astype('i4')
+            j0 = np.floor(np.clip(ij[0][1],1,self.ylen)).astype('i4')
+            i1 = np.ceil(np.clip(ij[1][0],1,self.xlen)).astype('i4')
+            j1 = np.ceil(np.clip(ij[1][1],1,self.ylen)).astype('i4')
+
+            # Number of pixels in x,y
+            nx = i1-i0+1
+            ny = j1-j0+1
+            
+            # Setup arrays to do conversion from image to sky coords
+            ii = [float(x) for x in list(range( i0,i1+1)) * ny ]
+            jj = [float(x) for x in np.repeat( list(range(j0,j1+1)), nx) ]
+
+            # Identify valid pixels
+            rirj = [ (i,j) for i,j in zip(ii,jj) if self.img.valid(int(i-1),int(j-1))]
+
+            # Compute sky coords
+            rxry = self.sky.apply( np.array(rirj))
+
+            # Now check pixels in bounding box around region
+            for kk in range(len(rxry)):
+                _i,_j = [int(q) for q in rirj[kk]]
+
+                # If pixel already assigned, skip it
+                if od[_j-1,_i-1] != 0:
+                    continue
+ 
+                # If pixel is inside, tag it with region number.
+                _x,_y = rxry[kk]
+                if rr.is_inside(_x,_y):
+                    od[_j-1,_i-1] = reg_no
+        
         return od
 
 
