@@ -12,7 +12,29 @@ params = [ x+".par" for x in scripts]
 docs = [ x+".xml" for x in scripts if os.path.exists(x+".xml")]
 
 
-from distutils.core import setup
+from setuptools import setup
+from setuptools.command.install import install
+
+
+class InstallAhelpWrapper(install):
+    'A simple wrapper to run ahelp -r after install to update ahelp index'
+
+    @staticmethod
+    def update_ahelp_database():
+        print("Update ahelp database ...")
+        from subprocess import check_output
+        sout = check_output(["ahelp","-r"])
+        for line in sout.decode().split("\n"):
+            for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
+                if line.startswith(summary):
+                    print("    "+line)
+
+    
+    def run(self):
+        install.run(self)
+        self.update_ahelp_database()
+
+
 setup( name='AdaptiveBin',
         version='0.9.0',
         description='Adaptive binning scripts',
@@ -21,13 +43,7 @@ setup( name='AdaptiveBin',
         url='https://github.com/kglotfelty/AdaptiveBin/',
         scripts = scripts,
         data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
-        packages=["crates_contrib",]        
+        packages=["crates_contrib",],
+        cmdclass={'install': InstallAhelpWrapper},
+        
         )
- 
-from subprocess import check_output
-print("Update ahelp database ...")
-sout = check_output("ahelp -r".split())
-for line in sout.decode().split("\n"):
-    for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
-        if line.startswith(summary):
-            print("    "+line)
