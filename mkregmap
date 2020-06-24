@@ -122,6 +122,7 @@ class Image():
             for ii,rr in enumerate( regions ):
                 if regInsideRegion(rr, xy[0], xy[1]):
                     retval = ii+1
+                    break
 
             return retval
 
