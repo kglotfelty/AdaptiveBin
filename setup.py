@@ -36,10 +36,10 @@ class InstallAhelpWrapper(install):
 
 
 setup( name='AdaptiveBin',
-        version='0.9.0',
+        version='4.13.0',
         description='Adaptive binning scripts',
-        author='Ken Glotfelty',
-        author_email='kglotfelty@cfa.harvard.edu',
+        author='Kenny Glotfelty',
+        author_email='glotfeltyk@si.edu',
         url='https://github.com/kglotfelty/AdaptiveBin/',
         scripts = scripts,
         data_files = [ ("param", params ), ("share/doc/xml", docs ) ],
