@@ -60,10 +60,13 @@ class CIAOTemporaryFile():
 class InputImage():
     'Object to hold input image'
 
-    def __init__(self, infile):
+    def __init__(self, infile, scale):
         'load image and compute coordinates'
         self.input_image = read_file(infile)
         self.imgvals = self.input_image.get_image().values
+        self.imgvals = np.abs(self.imgvals)
+        func = self._map_scale_function(scale)
+        self.imgvals = func(self.imgvals)
 
         ##self.imgvals = np.sqrt(np.abs(self.imgvals))
         ##self.imgvals = self.imgvals**2
@@ -84,6 +87,33 @@ class InputImage():
         # Weight imagevals by X and Y
         self.wx = self.xx * self.imgvals
         self.wy = self.yy * self.imgvals
+
+    def _map_scale_function(self, scale):
+        'Map scaling function to numpy function'
+        
+        if 'linear' == scale:
+            func = np.abs
+        elif 'sqrt' == scale:
+            func = np.sqrt
+        elif 'squared' == scale:
+            func = lambda x: x*x
+        elif 'log' == scale:
+            func = self._log
+        elif 'asinh' == scale:
+            func = np.arcsinh
+        elif 'sinh' == scale:
+            func = np.sinh
+        else:
+            raise RuntimeError(f"Unsupported scale value: {scale}")
+        return func
+
+    @staticmethod
+    def _log(xx):
+        with np.errstate(divide='ignore'):
+            retval = np.log(xx)
+        retval[np.isneginf(retval)] = 0
+        return retval
+
 
     def write_new_sites(self, outvals, outfile):
         'Write output with the centroids'
@@ -162,7 +192,7 @@ def main():
     outfile_clobber_checks(pars["clobber"], outfile)
 
     # Load image
-    img = InputImage(infile)
+    img = InputImage(infile, scale=pars["scale"])
 
     # Compute tessellation
     vtbin = make_tool_vtbin()
