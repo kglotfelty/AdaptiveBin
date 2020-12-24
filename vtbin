@@ -20,7 +20,7 @@
 from __future__ import print_function
 
 toolname = "vtbin"
-__revision__ = "25 February 2020"
+__revision__ = "24 December 2020"
 
 
 import os
@@ -156,6 +156,26 @@ def make_vcells( x, y ):
     return pts
 
 
+def make_polygon(cell, img_shape):
+    "Create polygon and compute extent bounded by image"
+    import numpy as np
+    from region import polygon
+    
+    p = polygon( cell.cellx, cell.celly)
+
+    # Loop over pixels just inside extent of polygon
+    ext=p.extent()
+    xl = max([0,int(ext['x0'])])
+    xh = min([img_shape[1], int(ext['x1']+1)])
+    yl = max([0,int(ext['y0'])])
+    yh = min([img_shape[0], int(ext['y1']+1)])
+
+    _yrange = np.arange(yl,yh)
+    _xrange = np.arange(xl,xh)
+    
+    return p, _xrange, _yrange
+
+
 def compute_vcells( infile, sitesfile, outfile, clobber ):
     """
     Given a set of local max, grow the regions until they touch and
@@ -163,7 +183,6 @@ def compute_vcells( infile, sitesfile, outfile, clobber ):
     """
     from crates_contrib.masked_image_crate import MaskedIMAGECrate
     import numpy as np
-    from region import polygon
 
     verb1("Assigning pixels to maxima")
 
@@ -191,26 +210,23 @@ def compute_vcells( infile, sitesfile, outfile, clobber ):
     # Now fill in the V. cells with the pixel value    
     outvv = np.zeros_like(vv)
     for c,v in zip(cells,sitesv):
+
         try:
-            # Some edge "polygons" are invalid; just skip them.
-            p = polygon( c.cellx, c.celly)
+            p, _xrange, _yrange = make_polygon(c, vv.shape)
         except:
             continue
         
-        # Loop over pixels just inside extent of polygon
-        ext=p.extent()
-                
-        for _y in np.arange( int(ext["y0"]),int(ext["y1"])+1):
-            if _y < 0 or _y >= vv.shape[0]:
-                continue
-
-            for _x in np.arange(int(ext["x0"]),int(ext["x1"])+1):
-                if _x < 0 or _x >= vv.shape[1]:
+        for _y in _yrange:
+            for _x in _xrange:
+                # Pixel already assigned, skip it
+                if outvv[_y,_x] != 0:
                     continue
-                
+
+                # Pixel not in subspace, skip it
                 if not dss_img.valid(_x,_y):
                     continue
-
+                
+                # Do the hard work
                 if p.is_inside(_x,_y):
                     outvv[_y,_x] = v
 
@@ -256,12 +272,8 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as E:
-        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
-        sys.exit(1)
-    sys.exit(0)
+    main()
+
 
 
 
