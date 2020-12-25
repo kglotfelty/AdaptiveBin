@@ -88,7 +88,8 @@ class InputImage():
         self.wx = self.xx * self.imgvals
         self.wy = self.yy * self.imgvals
 
-    def _map_scale_function(self, scale):
+    @staticmethod
+    def _map_scale_function(scale):
         'Map scaling function to numpy function'
         
         if 'linear' == scale:
@@ -97,23 +98,11 @@ class InputImage():
             func = np.sqrt
         elif 'squared' == scale:
             func = lambda x: x*x
-        elif 'log' == scale:
-            func = self._log
         elif 'asinh' == scale:
             func = np.arcsinh
-        elif 'sinh' == scale:
-            func = np.sinh
         else:
             raise RuntimeError(f"Unsupported scale value: {scale}")
         return func
-
-    @staticmethod
-    def _log(xx):
-        with np.errstate(divide='ignore'):
-            retval = np.log(xx)
-        retval[np.isneginf(retval)] = 0
-        return retval
-
 
     def write_new_sites(self, outvals, outfile):
         'Write output with the centroids'
@@ -176,6 +165,7 @@ def main():
     'Main routine'
     # Load parameters
     from ciao_contrib.param_soaker import get_params
+    from ciao_contrib.runtool import dmcopy
 
     pars = get_params(TOOLNAME, "rw", sys.argv,
                       verbose={"set": lw.set_verbosity, "cmd": VERB1})
@@ -222,6 +212,10 @@ def main():
         if 0 == len(diff):
             VERB0("Converged at step {}. Done.".format(niter))
             break
+
+        if int(pars["verbose"]) >= 2:
+            dmcopy(sitefile.name, outfile+f".i{niter:03d}",clobber=True)
+
 
     # Rename last temp file to final output file
     from ciao_contrib.runtool import dmcopy
