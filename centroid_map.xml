@@ -17,6 +17,7 @@
         maxima in the input image.  The location of these maxima are called
         'sites'.  It then performs a Voronoi Tessellation
         to determine the convex hull polygons around each initial site.
+        This is done using the vtbin tool.
         Next it computes the centroid of the pixel values enclosed in each
         polygon. Theses centroid are then used as the sites for the next
         iteration.  The tessellation and centroid process is repeated
@@ -203,6 +204,33 @@
             </PARA>
           </DESC>
         </PARAM>
+        <PARAM name="scale" type="string" def="linear">
+          <SYNOPSIS>Scaling applied to pixel values when computing centroid</SYNOPSIS>
+          <DESC>
+            <PARA>
+              In [Ref, integral , adaptive bin], they discuss 
+              how simply using the pixel values can lead to biases
+              in the centroid map (smaller cells around brighter pixels).
+              There is reference to additional work that advocates 
+              for scaling the pixel values can yeild more uniform 
+              cells (uniform in the sense of containing similar cell sizes
+              with similar counts, ie surface brightness).            
+            </PARA>
+            <PARA>
+            The following scaling functions are available
+            </PARA>
+            <LIST>
+                <ITEM>linear</ITEM>
+                <ITEM>sqrt</ITEM>
+                <ITEM>squared</ITEM>
+                <ITEM>asinh</ITEM>            
+            </LIST>
+          
+          </DESC>
+        
+        </PARAM>
+
+
         <PARAM name="verbose" type="integer" def="1" min="0" max="5">
             <SYNOPSIS>
             Amount of chatter from the tool.
@@ -223,6 +251,6 @@
             website</HREF> for an up-to-date listing of known bugs.
         </PARA>
     </BUGS>
-    <LASTMODIFIED>January 2019</LASTMODIFIED>
+    <LASTMODIFIED>December 2020</LASTMODIFIED>
 </ENTRY>
 </cxchelptopics>
