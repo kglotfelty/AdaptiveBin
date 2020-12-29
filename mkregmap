@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2014-2015 Smithsonian Astrophysical Observatory
+# Copyright (C) 2014-2015,2020 Smithsonian Astrophysical Observatory
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,11 +19,8 @@
 #
 
 
-from __future__ import print_function
-
-
 toolname = "mkregmap"
-__revision__ = "15 January 2019"
+__revision__ = "29 December 2020"
 
 import sys
 import os
@@ -113,6 +110,9 @@ class Image():
 
             # Identify valid pixels
             rirj = [ (i,j) for i,j in zip(ii,jj) if self.img.valid(int(i-1),int(j-1))]
+            if len(rirj) == 0:
+                # no valid pixels, move on
+                continue
 
             # Compute sky coords
             rxry = self.sky.apply( np.array(rirj))
