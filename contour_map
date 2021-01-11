@@ -180,7 +180,7 @@ def main():
 
         num_contours += 1
 
-        verb1("Contour lower limit: {}".format(low))
+        verb1("Contour lower limit: {} ({},{})".format(low,lx,ly))
 
         dmimglasso( use_img+ff, t1.name, xpos=lx, ypos=ly, coord="logical", 
             low_val=low, value="absolute", clobber=True)
