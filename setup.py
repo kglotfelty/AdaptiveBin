@@ -36,7 +36,7 @@ class InstallAhelpWrapper(install):
 
 
 setup( name='AdaptiveBin',
-        version='4.13.0',
+        version='4.13.1',
         description='Adaptive binning scripts',
         author='Kenny Glotfelty',
         author_email='glotfeltyk@si.edu',
