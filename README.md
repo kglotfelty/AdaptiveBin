@@ -20,13 +20,13 @@ Users may also be interested in the compiled tools
 - [`dmnautilus`](https://github.com/kglotfelty/dmnautilus-) (upgraded from CIAO version)
 - [`dmradar`](https://github.com/kglotfelty/dmradar) polar version of `dmnautilus`
 
-These require the user be able to build CIAO, and then these tools can be
-built.  Contact me.
+These are C programs that need to be built into your CIAO installation.
+(You do not have to build all of CIAO or even have the CIAO source code installed).
 
 ## Installation
 
 Users must have CIAO installed and have already sourced the setup script.  
-Then
+Then if you installed CIAO using `conda` just
 
 ```bash
 git clone https://github.com/kglotfelty/AdaptiveBin
@@ -34,8 +34,13 @@ cd AdaptiveBin
 python setup.py install 
 ```
 
-If you do not have write access to your CIAO installtion, then 
-you need to modify the `setup.cfg`.
+or if you installed CIAO using `ciao-install` then 
+
+```bash
+git clone https://github.com/kglotfelty/AdaptiveBin
+cd AdaptiveBin
+python setup.py build -f -e "/usr/bin/env python" install -f --prefix=$ASCDS_CONTRIB
+```
 
 You will then need to re-index your ahelp to get access to the
 help files
