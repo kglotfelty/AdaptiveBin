@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2019 Smithsonian Astrophysical Observatory
+# Copyright (C) 2019, 2023 Smithsonian Astrophysical Observatory
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -17,107 +17,132 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from __future__ import print_function
+
+'Convert a map file into a region file'
+
+
 import os
 import sys
+from tempfile import NamedTemporaryFile
 
+import numpy as np
 
-
-toolname = "map2reg"
-__revision__ = "17 January 2019"
-
-
+from ciao_contrib.runtool import make_tool
 import ciao_contrib.logger_wrapper as lw
-lgr = lw.initialize_logger(toolname)
-verb0 = lgr.verbose0
-verb1 = lgr.verbose1
-verb2 = lgr.verbose2
-verb3 = lgr.verbose3
-verb5 = lgr.verbose5
 
+__toolname__ = "map2reg"
+__revision__ = "28 August 2023"
+
+
+__lgr__ = lw.initialize_logger(__toolname__)
+verb0 = __lgr__.verbose0
+verb1 = __lgr__.verbose1
+verb2 = __lgr__.verbose2
+verb3 = __lgr__.verbose3
+verb5 = __lgr__.verbose5
+
+# Okay, I don't like globals, but better than passing around
 img = None
+infile = None
 
-def get_region( n_at ):
+
+def set_nproc(pars):
+    'Set number of processors'
+
+    if "no" == pars["parallel"]:
+        pars["nproc"] = 1
+    else:
+        if pars["nproc"] != "INDEF":
+            pars["nproc"] = int(pars["nproc"])
+        else:
+            pars["nproc"] = 999   # Hack, else history gets stuck with a pset
+
+
+def get_region(n_at):
     """
     Apply threshold at the map value (n_at)
-    
+
     Find location of max pixel (will be some arbitrary pixel in map)
-    
-    Convert from physical to logical coords
-    
+
     Lasso to create region  -- this only works for contigious regions
-    
+
     """
+    verb2(n_at)
 
-    verb1(n_at)
-    thrsh = img.thresh( n_at, n_at )
-    stt = thrsh.stats()
-    if stt["sum"] == 0:
+    pixels = np.argwhere(img.get_image().values == n_at)
+
+    if len(pixels) == 0:
         return None
-    pos = stt["max_loc"]
-    logc = thrsh.physical( *pos )
-    reg = thrsh.lasso( (int)(logc["logicalx"]+0.5), (int)(logc["logicaly"]+0.5), 
-      low_value=0.1, high_value=n_at+0.5, value="absolute", coord="logical" )
+
+    ypos, xpos = pixels[0] + 1  # Image coords are +1 from array index
+
+    tmpfile = NamedTemporaryFile(dir=os.environ["ASCDS_WORK_PATH"],
+                                 suffix="lasso.reg", delete=False)
+
+    lasso = make_tool("dmimglasso")
+    lasso.infile = infile
+    lasso.outfile = tmpfile.name
+    lasso.clobber = True
+    lasso.low_value = n_at - 0.5
+    lasso.high_value = n_at + 0.5
+    lasso.value = "absolute"
+    lasso.coord = "logical"
+    lasso.xpos = xpos
+    lasso.ypos = ypos
+    lasso()
+
+    return lasso.outfile
 
 
-    return str(reg)
-
-
-@lw.handle_ciao_errors( toolname, __revision__)
+@lw.handle_ciao_errors(__toolname__, __revision__)
 def main():
     """
-    
+    Main routine
     """
-    # get parameters
-    from ciao_contrib.param_soaker import get_params
-    from ciao_contrib.runtool import add_tool_history
 
     # Load parameters
-    pars = get_params(toolname, "rw", sys.argv, 
-        verbose={"set":lw.set_verbosity, "cmd":verb1} )
+    from ciao_contrib.param_soaker import get_params
+    pars = get_params(__toolname__, "rw", sys.argv,
+                      verbose={"set": lw.set_verbosity, "cmd": verb1})
 
     from ciao_contrib._tools.fileio import outfile_clobber_checks
-    outfile_clobber_checks( pars["clobber"], pars["outfile"])
+    outfile_clobber_checks(pars["clobber"], pars["outfile"])
 
-    from ciao_contrib.cipt import CIAOImage
+    set_nproc(pars)
+
+    # Load map file
+    from pycrates import read_file
     global img
-    img = CIAOImage(pars["infile"])
-    nmax = int(img.stats()["max"])
+    global infile
+    infile = pars["infile"]
+    img = read_file(infile)
 
-    import numpy as np
-    uu = np.unique( img.get_image().values)
-    uu = uu[uu>0]
+    # Get list values to iterate over
+    uniq_vals = np.unique(img.get_image().values)
+    uniq_vals = uniq_vals[uniq_vals > 0]
 
+    # Create regions
     from sherpa.utils import parallel_map
-    outreg = parallel_map( get_region, uu )
-    
-    #outreg = [get_region(i) for i in uu]
+    outreg = parallel_map(get_region, uniq_vals,
+                          numcores=int(pars["nproc"]))
 
-    i=0
-    while True:
-        if outreg[i] is not None:
-            break
-        i=i+1
-            
+    # Combine into single region file
     from region import CXCRegion
-    allout = CXCRegion(outreg[i])
-    for r in outreg[i+1:]:
-        if r is not None:
-            allout = allout+CXCRegion(r)
+    allout = CXCRegion()
+    for myreg in outreg:
+        if myreg is None:
+            continue
 
-    allout.write( pars["outfile"], fits=True, clobber=True )
+        parsed_reg = CXCRegion(myreg)
+        allout += parsed_reg
+        os.unlink(myreg)  # Delete along the way
+
+    # Write output
+    from ciao_contrib.runtool import add_tool_history
+    allout.write(pars["outfile"], fits=True, clobber=True)
+    add_tool_history(pars["outfile"], __toolname__, pars,
+                     toolversion=__revision__)
 
 
-   
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as E:
-        print("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
-        sys.exit(1)
-    sys.exit(0)
-
-
-
-
-
+    main()
